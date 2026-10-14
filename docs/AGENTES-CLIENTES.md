@@ -94,3 +94,12 @@ Las pruebas comprueban el vínculo real entre clic, cesta y pedido; rechazo de c
 `docs/evidencia-clientes.json` conserva una compra decidida por el modelo local, su cesta comprobada contra el importe, el clic/sesión enlazados y las posiciones del mismo pedido hasta la entrega. Ejecutar `python3 scripts/check_customer_agent.py --mode ollama` para repetirlo (sin otra ejecución activa), o añadir `--existing` para comprobar la actual. La carga inicial del modelo y las decisiones tardan varios segundos; no se producen millones de llamadas de IA. El volumen masivo sigue aportándolo el laboratorio histórico/generadores, mientras la IA alimenta el recorrido conectado en directo.
 
 Se observaron rechazos transitorios de lecturas por el límite global de memoria de ClickHouse durante fusiones en segundo plano. El cliente reintenta solo lecturas con el código 241, hasta dos veces; un fallo persistente se muestra en el panel. Las escrituras siguen usando la cola y su publicador. Esta demo no implica un SLA de latencia ni mide conducta comercial real.
+
+### Publicación y revisión visual
+
+- Código desplegado: `36ea395`, proyecto Vercel `delivery-atlas-demo`, equipo `contrerasgeremi-gmailcoms-projects`, entorno producción, estado Ready.
+- Enlace: https://delivery-atlas-demo.vercel.app/. El portátil, Ollama, Atlas, ClickHouse y el túnel deben permanecer encendidos. Los controles están en http://127.0.0.1:8001/.
+- Comprobado: tres clientes del run local visibles a través del proxy; HTML sin controles de inicio; POST público rechazado con 405; sin errores de JavaScript registrados durante la visita.
+- Revisado escritorio y móvil de 390 px: sin desbordamiento horizontal de la página. Las tablas conservan desplazamiento horizontal dentro de su contenedor.
+- Captura de la versión publicada: `docs/capturas/clientes-ia-publico.png`; el clic «Ver reparto» mostró el mismo cliente, sesión, checkout y pedido en el detalle del mapa.
+- Las capturas de escritorio/móvil anteriores registran la revisión previa a convertir los importes enviados al modelo a euros. La captura pública corresponde a la versión final. Las explicaciones de un modelo pequeño pueden ser imprecisas; la validación y el importe de la compra dependen del catálogo y del carrito, no de ese texto.

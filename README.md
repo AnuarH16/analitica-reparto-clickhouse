@@ -2,6 +2,8 @@
 
 Proyecto BD2 para diseñar la infraestructura analítica de una plataforma ficticia de comida a domicilio. El objetivo es recibir eventos de navegación masivos, conservar su procedencia y alimentar un dashboard con ClickHouse. La implementación actual, llamada Clickstream Lab en el panel OTTO, aporta el laboratorio de datos y rendimiento sobre el que desarrollamos ese caso.
 
+**Guía técnica para el equipo (14/10):** [PDF completo](output/pdf/Delivery-Atlas-Documento-Tecnico-Equipo.pdf) y [versión editable](docs/DOCUMENTO-TECNICO-EQUIPO.md). Explica tecnologías, arquitectura, contratos y columnas, ingesta, simulación, consultas, compartición y límites de las pruebas. Revisa el código actual; las mediciones incluidas corresponden al 7/10.
+
 **Actualización del 7 de octubre:** la plataforma ficticia ya tiene contrato validado, cola duradera, publicación por lotes, SQL aplicado en `delivery_atlas`, generador reproducible y dashboard de operación. La miniapp comercial es la siguiente entrega. [Plan para Jere, Anuar y Echenique](docs/PLAN-EQUIPO.md) y [guía completa de infraestructura](docs/INFRAESTRUCTURA-ATLAS.md).
 
 **Para repartir el trabajo hoy:** [guía del equipo en PDF](output/pdf/Delivery-Atlas-Guia-Equipo.pdf). [Pruebas de la nueva base](docs/RESULTADOS-ATLAS.md): un millón de eventos sintéticos verificados, reintentos y recuperación tras reinicio. El agregado exacto conserva el resultado, pero aún no mejora la velocidad del detalle en esta prueba.

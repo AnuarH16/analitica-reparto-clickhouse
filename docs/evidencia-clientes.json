@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-10-14T14:30:44.121119+00:00",
+  "run_id": "7fcfea6a-9c73-44d1-b579-a4ba80137aac",
+  "agent_mode": "ollama",
+  "model": "qwen3:0.6b",
+  "model_calls": 22,
+  "published_model_decisions": 20,
+  "order_id": "e74cad39-b00d-5a45-8420-987f087e0dca",
+  "checkout_event_id": "41973e6b-945c-5088-b324-84082f3c2794",
+  "session_id": "8bfe5201-423b-5681-a2e4-443ea366ca73",
+  "amount_minor": 878,
+  "basket_total_matches": true,
+  "checkout_link_verified_in_clickhouse": true,
+  "delivered": true,
+  "observed_states": [
+    "delivered"
+  ],
+  "stored_states": [
+    "created",
+    "delivered",
+    "en_route",
+    "picked_up",
+    "preparing"
+  ],
+  "gps": {
+    "positions": 49,
+    "couriers": 1,
+    "first": "2026-10-14 14:27:30.070",
+    "last": "2026-10-14 14:29:06.069"
+  },
+  "scope": "Real local LLM or labelled policy; no payment, no observed customers, no latency SLA.",
+  "ollama_version": "0.40.4",
+  "ollama_image_digest": "sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6",
+  "model_digest_prefix": "7df6b6e09427",
+  "unit_tests_passed": 18
+}

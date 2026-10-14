@@ -1,3 +1,5 @@
+> **Ampliación 14/10:** ya existe el agente de clientes con IA local y relación checkout → compra → estados → GPS. [Guía de la ampliación](AGENTES-CLIENTES.md). La miniapp manual y otros puntos pendientes de esta evaluación anterior siguen separados.
+
 # Estado del proyecto para el equipo
 
 ## Actualización del 7 de octubre de 2026

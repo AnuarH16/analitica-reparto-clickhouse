@@ -99,22 +99,33 @@ class Simulator:
         self.store=store
         self.lock=threading.RLock()
         self.thread=None
+        self.customer_runtime=None
         self.cancel=threading.Event()
         previous=store.metadata('simulation') or {}
         self.state=dict(previous,running=False,state='stopped',error=None)
 
     def snapshot(self):
         with self.lock:
+            if self.customer_runtime:return self.customer_runtime.snapshot()
             return dict(self.state)
 
-    def start(self,fleet=12,interval=2,seed=42):
+    def start(self,fleet=12,interval=2,seed=42,mode='legacy',customers=3,agent_mode='ollama',ch=None):
         if type(fleet) is not int or not 1<=fleet<=50 or type(interval) not in (int,float) or not 1<=interval<=10:
             raise ValueError('Usar 1 a 50 repartidores e intervalo de 1 a 10 segundos.')
         if type(seed) is not int or not 0<=seed<=4294967295:
             raise ValueError('Semilla entera entre 0 y 4294967295.')
+        if mode not in {'legacy','customers'} or agent_mode not in {'ollama','policy'} or type(customers) is not int or not 1<=customers<=24:
+            raise ValueError('Modo o clientes incorrectos; usar 1 a 24 clientes.')
         with self.lock:
             if self.thread and self.thread.is_alive():
                 raise ValueError('La simulación ya está activa; pararla antes de iniciar otra.')
+            if mode=='customers':
+                from atlas.customer_runtime import CustomerRuntime
+                runtime=CustomerRuntime(self.store,ch,fleet,customers,interval,seed,agent_mode)
+                result=runtime.launch()
+                self.customer_runtime=runtime;self.thread=runtime.thread
+                return result
+            self.customer_runtime=None
             self.cancel=threading.Event()
             now=datetime.now(timezone.utc)
             self.scenario=Scenario(str(uuid4()),now,fleet,seed)
@@ -128,6 +139,7 @@ class Simulator:
             return dict(self.state)
 
     def stop(self):
+        if self.customer_runtime:return self.customer_runtime.stop()
         with self.lock:
             self.cancel.set()
             thread=self.thread

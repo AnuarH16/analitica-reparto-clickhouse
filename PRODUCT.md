@@ -36,3 +36,7 @@ docs/auditoria-esquemas.json contiene tablas y columnas inspeccionadas. docs/RES
 - Leer del almacén real: no mover repartidores en el navegador sin ingesta.
 - Mostrar retraso, errores y antigüedad de posición.
 - Hacer reproducible la ruta pequeña sin descargar los datasets masivos.
+
+## Customer Agent Extension — 14/10/2026
+
+Clientes ficticios usan Qwen3:0.6b en Ollama local para elegir acciones de catálogo. Python valida opciones y presupuestos; una compra enlaza customer_id, session_id, checkout_event_id y order_id con la cesta, estados y GPS. El dashboard lee las decisiones y compras publicadas en ClickHouse. Política local y flota anterior tienen etiquetas distintas. Evidencia: docs/evidencia-clientes.json y docs/AGENTES-CLIENTES.md.

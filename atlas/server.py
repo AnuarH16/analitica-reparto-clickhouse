@@ -87,9 +87,9 @@ def make_handler(store, ch, publisher, simulator):
                     raise ValueError('Cuerpo incompleto')
                 data = json.loads(raw)
                 if route=='/api/simulation/start':
-                    if not isinstance(data,dict) or set(data)-{'fleet','interval','seed'}:
+                    if not isinstance(data,dict) or set(data)-{'fleet','interval','seed','mode','customers','agent_mode'}:
                         raise ValueError('Configuración de simulación desconocida.')
-                    return self.send_json(simulator.start(**data),202)
+                    return self.send_json(simulator.start(**data,ch=ch),202)
                 if route=='/api/simulation/stop':
                     if data!={}:raise ValueError('Enviar {} para parar.')
                     return self.send_json(simulator.stop())

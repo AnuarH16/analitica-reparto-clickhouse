@@ -7,6 +7,8 @@ const clock=value=>value?new Date(value.replace(' ','T')+'Z').toLocaleTimeString
 const states={created:'Creado',preparing:'Preparando',picked_up:'Recogido',en_route:'En reparto',delivered:'Entregado',cancelled:'Cancelado'};
 let selected='',lastData=null,lastSimulation={},refreshTimer=null,fetching=false,controlling=false,manualEvent=null;
 let navigationFetching=false,navigationAt=0,navigationOrigin='';
+let trackFetching=false;
+const customerActions={session_started:'Empieza una sesión',search:'Busca comida',open_restaurant:'Compara restaurante',open_product:'Abre un producto',add_to_cart:'Añade al carrito',remove_from_cart:'Quita del carrito',checkout:'Confirma compra',abandon:'Abandona la sesión',delivery_completed:'Recibe su pedido'};
 const session=crypto.randomUUID();
 const readOnly=Boolean(document.querySelector('meta[name="atlas-readonly"]'));
 async function request(path,body){
@@ -19,7 +21,7 @@ async function request(path,body){
 function project(lat,lon){return [28+(Number(lon)+3.718)/.037*744,450-(Number(lat)-40.400)/.030*420];}
 function svgNode(tag,attrs){const node=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([key,value])=>node.setAttribute(key,value));return node;}
 function showError(message){$('error').hidden=!message;$('error').textContent=message;}
-function buttons(){ if(readOnly)return; $('start').disabled=controlling||lastSimulation.running;$('stop').disabled=controlling||!lastSimulation.running;$('fleet').disabled=controlling||lastSimulation.running; }
+function buttons(){ if(readOnly)return; if(lastSimulation.running){$('fleet').value=String(lastSimulation.fleet);$('customer-count').value=String(lastSimulation.customers||3);$('agent-mode').value=lastSimulation.mode==='customers'?lastSimulation.agent_mode:'legacy';} $('start').disabled=controlling||lastSimulation.running;$('stop').disabled=controlling||!lastSimulation.running;for(const id of ['fleet','agent-mode','customer-count'])$(id).disabled=controlling||lastSimulation.running; }
 function selectCourier(id){selected=id;$('courier').value=id;if(lastData)renderMap(lastData);}
 function renderMap(data){
   const couriers=data.couriers||[];
@@ -44,9 +46,11 @@ function renderMap(data){
   $('destinations').replaceChildren();$('route').setAttribute('points','');
   if(!row){$('freshness').textContent='Sin posiciones';return;}
   const order=(data.orders||[]).find(o=>o.order_id===row.order_id);
+  const customer=(data.customers||[]).find(c=>c.customer_id===order?.customer_id);
   const age=Math.max(0,(Date.now()-Date.parse(row.event_time.replace(' ','T')+'Z'))/1000);
   $('freshness').textContent=`${couriers.length} repartidores · posición seleccionada: hace ${age.toFixed(1)} s`;
-  $('courier-detail').innerHTML=[['Pedido',row.order_id.slice(0,8)],['Estado',states[order?.status]||'Esperando estado'],
+  $('courier-detail').innerHTML=[['Pedido',row.order_id.startsWith('00000000-')?'Sin pedido asignado':row.order_id.slice(0,8)],['Estado',states[order?.status]||'Disponible'],
+    ...(order?.customer_id?[['Cliente',customer?.customer_label||order.customer_id.slice(0,8)],['Sesión',order.session_id.slice(0,8)],['Clic de compra',order.checkout_event_id.slice(0,8)]]:[]),
     ['Latitud',Number(row.latitude).toFixed(6)],['Longitud',Number(row.longitude).toFixed(6)],
     ['Velocidad simulada',`${Number(row.speed_kmh).toFixed(1)} km/h`],['Precisión simulada',`${row.accuracy_m} m`],
     ['Hora del evento',clock(row.event_time)],['Antigüedad',`${age.toFixed(1)} s`],
@@ -58,22 +62,40 @@ function renderMap(data){
     }
   }
   const selectedAtRequest=selected,runAtRequest=data.run_id;
+  if(!order||trackFetching)return;
+  trackFetching=true;
   request(`/api/track?run_id=${encodeURIComponent(data.run_id)}&courier_id=${encodeURIComponent(selected)}`).then(history=>{
-    if(selected!==selectedAtRequest||lastData?.run_id!==runAtRequest)return;
+    if(selected!==selectedAtRequest||lastData?.run_id!==runAtRequest||lastData.couriers.find(c=>c.courier_id===selected)?.order_id!==row.order_id)return;
     const points=history.rows.filter(p=>p.order_id===row.order_id).map(p=>project(p.latitude,p.longitude).join(','));
     $('route').setAttribute('points',points.join(' '));
     $('rate-note').textContent='El gráfico se consulta desde el histórico GPS en ClickHouse.';
-  }).catch(()=>{$('rate-note').textContent='No se pudo consultar el recorrido. Se reintentará en la siguiente actualización.';});
+  }).catch(()=>{$('rate-note').textContent='No se pudo consultar el recorrido. Se reintentará en la siguiente actualización.';}).finally(()=>{trackFetching=false;});
+}
+function renderCustomers(data){
+  const metrics=data.customer_metrics||{};
+  for(const [id,key] of [['customer-sessions','sessions'],['customer-clicks','clicks'],['customer-checkouts','checkouts'],['customer-abandons','abandoned_sessions']])$(id).textContent=fmt.format(Number(metrics[key]||0));
+  const sim=lastSimulation;
+  $('agent-label').textContent=sim.mode==='customers'?`${sim.agent_mode==='ollama'?'IA local · '+sim.model:'Política local · sin modelo de IA'}${sim.agent_state==='limit_reached'?' · límite de 120 llamadas alcanzado':sim.agent_state==='error'?' · decisiones detenidas por error':!sim.running?' · ejecución parada':''}${sim.agent_mode==='ollama'?` · ${sim.model_calls||0}/${sim.max_model_calls||120} llamadas`:''}`:'Flota anterior o sin ejecución de clientes';
+  $('customers-body').innerHTML=(data.customers||[]).map(c=>{
+    const order=(data.orders||[]).find(o=>o.order_id===c.order_id);
+    const courier=(data.couriers||[]).find(p=>p.order_id===c.order_id);
+    const context=c.product_name||c.restaurant_name||c.objective;
+    const following=c.order_id?`<span>${escapeHTML(c.order_id.slice(0,8))} · ${escapeHTML(states[order?.status]||(c.stage==='delivered'?'Entregado':'Pendiente de publicación'))}</span>${courier&&order?.status!=='delivered'?`<button class="secondary follow-order" data-order="${escapeHTML(c.order_id)}" aria-label="Ver reparto de ${escapeHTML(c.customer_label)}">Ver reparto</button>`:''}`:'Todavía sin compra';
+    return `<tr><td><strong>${escapeHTML(c.customer_label)}</strong><small>Presupuesto ${money(c.budget_minor)}</small></td><td><strong>${escapeHTML(customerActions[c.action]||c.action)}</strong><small>${escapeHTML(context)}</small><p>${escapeHTML(c.reason)}</p></td><td>${money(c.cart_total_minor)}</td><td>${following}</td></tr>`;
+  }).join('')||'<tr><td colspan="4">Inicia el modo clientes. Las decisiones aparecerán tras publicarse en ClickHouse.</td></tr>';
+  $('customer-activity').innerHTML=(data.activity||[]).map(a=>`<li><time>${clock(a.event_time)}</time><strong>${escapeHTML(a.customer_label)} · ${escapeHTML(customerActions[a.action]||a.action)}</strong><span>${escapeHTML(a.reason)} <small>${a.decision_mode==='ollama'?'Decisión del modelo':a.decision_mode==='policy'?'Política de prueba':'Sistema'}</small></span></li>`).join('')||'<li>Aún no hay acciones publicadas en esta ejecución.</li>';
 }
 function renderOperations(data){
   lastData=data;const m=data.metrics||{};
   for(const key of ['active','delivered','cancelled','late'])$(key).textContent=fmt.format(Number(m[key]||0));
   $('amount').textContent=money(m.delivered_amount_minor);
   $('order-count').textContent=`${fmt.format(Number(m.orders||0))} pedidos${data.truncated?' · lista limitada a 200':''}`;
-  $('orders-body').innerHTML=(data.orders||[]).map(row=>`<tr><td>${escapeHTML(row.order_id.slice(0,8))}</td><td>${escapeHTML(row.restaurant_id.replace('fictional-madrid-','Madrid · local '))}</td><td><span class="badge ${escapeHTML(row.status)}">${escapeHTML(states[row.status]||row.status)}</span></td><td>${money(row.amount_minor)}</td><td>${clock(row.order_created_at)}</td><td>${clock(row.promised_delivery_at)}</td></tr>`).join('')||'<tr><td colspan="6">Sin pedidos en esta ejecución. Inicia la simulación.</td></tr>';
+  const labels=Object.fromEntries((data.customers||[]).map(c=>[c.customer_id,c.customer_label]));
+  $('orders-body').innerHTML=(data.orders||[]).map(row=>`<tr><td>${escapeHTML(row.order_id.slice(0,8))}</td><td>${row.customer_id?`${escapeHTML(labels[row.customer_id]||row.customer_id.slice(0,8))}<small>Sesión ${escapeHTML(row.session_id.slice(0,8))}</small>`:'Demo anterior'}</td><td>${escapeHTML(row.restaurant_id.replace('fictional-madrid-','Madrid · local '))}</td><td><span class="badge ${escapeHTML(row.status)}">${escapeHTML(states[row.status]||row.status)}</span></td><td>${money(row.amount_minor)}</td><td>${clock(row.order_created_at)}</td><td>${clock(row.promised_delivery_at)}</td></tr>`).join('')||'<tr><td colspan="7">Sin compras en esta ejecución. Esperando un checkout confirmado.</td></tr>';
   const rate=data.positions_by_5s||[];const max=Math.max(1,...rate.map(r=>Number(r.positions)));
   $('rate').replaceChildren(...rate.map(row=>{const bar=document.createElement('div');bar.style.height=`${Number(row.positions)/max*100}%`;bar.title=`${clock(row.bucket)} · ${row.positions} posiciones`;return bar;}));
   renderMap(data);
+  renderCustomers(data);
 }
 function renderNavigation(data){
   const totals={};(data.rows||[]).forEach(row=>totals[row.event_type]=(totals[row.event_type]||0)+Number(row.events));
@@ -98,18 +120,23 @@ async function poll(){
     renderOperations(data);$('pending').textContent=fmt.format(queue.pending);loadNavigation();
     const state=lastSimulation.error?`Simulación detenida: ${lastSimulation.error}`:lastSimulation.running?`Simulación activa · ${lastSimulation.fleet} repartidores · intervalo solicitado: ${lastSimulation.interval_seconds} s`:'Simulación parada; el histórico se conserva';
     $('status').textContent=`${state}. Última consulta: ${new Date().toLocaleTimeString('es-ES')}${lastSimulation.run_id?` · ejecución ${lastSimulation.run_id.slice(0,8)}`:''}.`;
-    showError(queue.publisher_error?`La publicación está reintentando: ${queue.publisher_error}. Los eventos aceptados siguen en cola.`:lastSimulation.error||'');
+    showError(queue.publisher_error?`La publicación está reintentando: ${queue.publisher_error}. Los eventos aceptados siguen en cola.`:lastSimulation.error||(lastSimulation.agent_state==='error'?'Se han detenido las decisiones después de tres errores. Revisa Ollama y reinicia la ejecución; las entregas ya creadas siguen avanzando.':''));
   }catch(error){showError(`No se pudo actualizar: ${error.message}. Se conservan los datos anteriores y se reintentará.`);$('freshness').textContent='Consulta fallida · posiciones anteriores';}
   finally{fetching=false;clearTimeout(refreshTimer);refreshTimer=setTimeout(poll,2000);}
 }
 async function control(action){
   controlling=true;buttons();
-  try{lastSimulation=await request(`/api/simulation/${action}`,action==='start'?{fleet:Number($('fleet').value),interval:2,seed:42}:{});showError('');}
+  try{lastSimulation=await request(`/api/simulation/${action}`,action==='start'?{fleet:Number($('fleet').value),interval:2,seed:42,mode:$('agent-mode').value==='legacy'?'legacy':'customers',agent_mode:$('agent-mode').value==='policy'?'policy':'ollama',customers:Number($('customer-count').value)}:{});showError('');}
   catch(error){showError(error.message);}
   finally{controlling=false;buttons();await poll();}
 }
 if(!readOnly){$('start').addEventListener('click',()=>control('start'));$('stop').addEventListener('click',()=>control('stop'));}
 $('courier').addEventListener('change',()=>selectCourier($('courier').value));
+$('customers-body').addEventListener('click',event=>{
+  const button=event.target.closest('[data-order]');if(!button)return;
+  const courier=lastData?.couriers.find(c=>c.order_id===button.dataset.order);if(!courier)return;
+  selectCourier(courier.courier_id);$('tracking').scrollIntoView({behavior:'auto',block:'start'});
+});
 $('origin').addEventListener('change',()=>loadNavigation(true));
 $('manual').addEventListener('click',async()=>{
   $('manual').disabled=true;
@@ -118,7 +145,7 @@ $('manual').addEventListener('click',async()=>{
   catch(error){$('manual-status').textContent=`No se confirmó el envío: ${error.message}`;$('manual').textContent='Reintentar la misma búsqueda';}
   finally{$('manual').disabled=false;}
 });
-const uses={otto_archive:'Eventos públicos OTTO',rees46_events:'Eventos públicos REES46',eleme_samples:'Muestras públicas Ele.me',glovo_products:'Catálogo publicado; sin clics',orders:'Pedidos históricos TRD / Meituan',clicks:'Secuencias históricas TRD / Meituan',restaurants:'Restaurantes históricos TRD',foods:'Productos históricos TRD',order_items:'Líneas de pedidos históricos',otto_scale_benchmark:'Filas derivadas para estrés',otto_replay:'Reproducción histórica',app_events:'Navegación propia, origen etiquetado',courier_positions:'GPS sintético',order_events:'Estados de pedidos sintéticos'};
+const uses={otto_archive:'Eventos públicos OTTO',rees46_events:'Eventos públicos REES46',eleme_samples:'Muestras públicas Ele.me',glovo_products:'Catálogo publicado; sin clics',orders:'Pedidos históricos TRD / Meituan',clicks:'Secuencias históricas TRD / Meituan',restaurants:'Restaurantes históricos TRD',foods:'Productos históricos TRD',order_items:'Líneas de pedidos históricos',otto_scale_benchmark:'Filas derivadas para estrés',otto_replay:'Reproducción histórica',app_events:'Navegación propia, origen etiquetado',courier_positions:'GPS sintético',order_events:'Estados de pedidos sintéticos',customer_activity:'Decisiones de clientes sintéticos',customer_orders:'Compras enlazadas al checkout',customer_latest_state:'Último estado agregado de clientes'};
 async function loadContext(){
   const results=await Promise.allSettled([request('/api/inventory'),request('/api/catalog')]);
   if(results[0].status==='fulfilled')$('inventory-body').innerHTML=results[0].value.rows.filter(r=>uses[r.name]).map(row=>`<tr><td>${escapeHTML(row.database+'.'+row.name)}</td><td>${fmt.format(Number(row.total_rows||0))}</td><td>${escapeHTML(row.disk)}</td><td>${escapeHTML(uses[row.name])}</td></tr>`).join('');

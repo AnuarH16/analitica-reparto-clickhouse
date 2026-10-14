@@ -2,6 +2,8 @@
 
 Proyecto BD2 para diseñar la infraestructura analítica de una plataforma ficticia de comida a domicilio. El objetivo es recibir eventos de navegación masivos, conservar su procedencia y alimentar un dashboard con ClickHouse. La implementación actual, llamada Clickstream Lab en el panel OTTO, aporta el laboratorio de datos y rendimiento sobre el que desarrollamos ese caso.
 
+**Clientes con IA conectados al reparto (14/10):** [arranque, esquema y verificación](docs/AGENTES-CLIENTES.md). Qwen3 local decide acciones; el checkout crea el mismo pedido que se asigna y sigue en el mapa. Compras y posiciones ficticias, sin cobro. Activar los perfiles `atlas` y `ai`, descargar el modelo como indica la guía y abrir http://127.0.0.1:8001/.
+
 **Guía técnica para el equipo (14/10):** [PDF completo](output/pdf/Delivery-Atlas-Documento-Tecnico-Equipo.pdf) y [versión editable](docs/DOCUMENTO-TECNICO-EQUIPO.md). Explica tecnologías, arquitectura, contratos y columnas, ingesta, simulación, consultas, compartición y límites de las pruebas. Revisa el código actual; las mediciones incluidas corresponden al 7/10.
 
 **Para entenderlo rápido:** [guía visual de 4 páginas](output/pdf/Delivery-Atlas-Guia-Visual-Equipo.pdf), con esquema de conexiones, tipos de registros y primeros pasos para Anuar y Echenique. [Resumen editable](docs/GUIA-VISUAL-EQUIPO.md).

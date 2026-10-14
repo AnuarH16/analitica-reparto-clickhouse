@@ -40,3 +40,7 @@ docs/auditoria-esquemas.json contiene tablas y columnas inspeccionadas. docs/RES
 ## Customer Agent Extension — 14/10/2026
 
 Clientes ficticios usan Qwen3:0.6b en Ollama local para elegir acciones de catálogo. Python valida opciones y presupuestos; una compra enlaza customer_id, session_id, checkout_event_id y order_id con la cesta, estados y GPS. El dashboard lee las decisiones y compras publicadas en ClickHouse. Política local y flota anterior tienen etiquetas distintas. Evidencia: docs/evidencia-clientes.json y docs/AGENTES-CLIENTES.md.
+
+## Concurrent traffic extension
+
+Modo híbrido: 3 clientes de IA y 197 clientes del simulador de tráfico, con 80 repartidores. El tráfico usa lotes y pausas distintas; conserva presupuesto, checkout, sesión y pedido. Los perfiles que exploran y abandonan mantienen clics mientras los compradores esperan entregas. Resumen de doce clientes y marcadores reducidos para flotas grandes. Se configuran hasta 500 clientes y 150 repartidores; el escenario 200/80 tiene evidencia en docs/evidencia-trafico.json.

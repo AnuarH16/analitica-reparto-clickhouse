@@ -1,6 +1,7 @@
 """Meaningful commerce invariants: checkout linkage, budgets and delivery continuity."""
 import copy
 import tempfile
+import threading
 import unittest
 import json
 from unittest.mock import patch
@@ -8,7 +9,7 @@ from io import BytesIO
 from datetime import datetime,timedelta,timezone
 from uuid import uuid4
 from atlas.commerce import CommerceEngine,ZERO
-from atlas.customer_agent import PolicyAgent,OllamaAgent
+from atlas.customer_agent import PolicyAgent,OllamaAgent,TrafficAgent
 from atlas.customer_runtime import CustomerRuntime
 from atlas.contract import validate
 from atlas.store import Store,Full
@@ -107,6 +108,65 @@ class CommerceTests(unittest.TestCase):
         self.assertNotIn('budget_minor',visible)
         self.assertEqual(self.engine.customers[self.cid]['budget'],1400)
         self.assertEqual(decision['action'],'search')
+
+    def test_bulk_traffic_preserves_ai_ownership_and_checkout_links(self):
+        class CH:
+            def query(self,sql):return catalog()['restaurants' if 'restaurants' in sql else 'products']
+        with tempfile.TemporaryDirectory() as path:
+            store=Store(path+'/queue.sqlite',max_pending=10000)
+            with patch.object(OllamaAgent,'ready',return_value=True):
+                runtime=CustomerRuntime(store,CH(),80,200,2,42,'hybrid')
+            start=runtime.engine.start
+            runtime.commit(lambda engine:engine.advance(start))
+            for second in range(1,45):
+                def batch(engine):
+                    now=start+timedelta(seconds=second)
+                    rows=engine.advance(now) if second%2==0 else []
+                    return rows+runtime.traffic_batch(engine,now)[0]
+                runtime.commit(batch)
+            ai=[c for c in runtime.engine.customers.values() if c['decision_mode']=='ollama']
+            self.assertEqual(len(ai),3)
+            self.assertTrue(all(c['steps']==0 and not c['cart'] for c in ai))
+            self.assertGreater(len(runtime.engine.orders),100)
+            rows=[json.loads(payload) for _,payload in store.pending(10000)]
+            links=[r for r in rows if r.get('_stream')=='customer_orders']
+            clicks={r['event_id']:r for r in rows if r.get('event_type')=='order_submitted'}
+            self.assertTrue(links)
+            for link in links:
+                self.assertEqual(link['decision_mode'],'traffic')
+                self.assertEqual(clicks[link['checkout_event_id']]['order_id'],link['order_id'])
+                self.assertEqual(link['amount_minor'],sum(q*price for _,q,price in link['items']))
+            self.assertEqual(len(links),len({r['order_id'] for r in links}))
+            runtime.cancel.set()
+
+    def test_gps_waiting_for_checkout_samples_clock_after_commit_lock(self):
+        class CH:
+            def query(self,sql):return catalog()['restaurants' if 'restaurants' in sql else 'products']
+        with tempfile.TemporaryDirectory() as path:
+            runtime=CustomerRuntime(Store(path+'/queue.sqlite'),CH(),1,1,2,42,'policy')
+            original=runtime.commit
+            original(lambda engine:engine.advance(datetime.now(timezone.utc)))
+            waiting=threading.Event();proceed=threading.Event()
+            def delayed(operation):
+                waiting.set()
+                if not proceed.wait(3):raise RuntimeError('test synchronization timed out')
+                result=original(operation);runtime.cancel.set();return result
+            runtime.commit=delayed
+            worker=threading.Thread(target=runtime.run);worker.start()
+            self.assertTrue(waiting.wait(3))
+            cid=next(iter(runtime.engine.customers))
+            try:
+                for _ in range(5):
+                    def step(engine):
+                        now=datetime.now(timezone.utc);context=engine.context(cid,now)
+                        return engine.decide(cid,context['revision'],PolicyAgent().choose(context),now)
+                    original(step)
+            finally:
+                proceed.set();worker.join(4)
+            self.assertFalse(worker.is_alive())
+            self.assertIsNone(runtime.state['error'])
+            order=next(iter(runtime.engine.orders.values()))
+            self.assertGreaterEqual(order['assigned_at'],order['created'])
 
     def test_legacy_event_payload_not_changed_by_nullable_link(self):
         raw={'schema_version':1,'event_id':str(uuid4()),'session_id':str(uuid4()),'event_time':self.at.isoformat(),

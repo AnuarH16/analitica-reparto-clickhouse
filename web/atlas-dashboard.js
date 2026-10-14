@@ -7,7 +7,8 @@ const clock=value=>value?new Date(value.replace(' ','T')+'Z').toLocaleTimeString
 const states={created:'Creado',preparing:'Preparando',picked_up:'Recogido',en_route:'En reparto',delivered:'Entregado',cancelled:'Cancelado'};
 let selected='',lastData=null,lastSimulation={},refreshTimer=null,fetching=false,controlling=false,manualEvent=null;
 let navigationFetching=false,navigationAt=0,navigationOrigin='';
-let trackFetching=false;
+let trackFetching=false,showAllCustomers=false;
+const decisionLabel=mode=>({ollama:'IA local',traffic:'Simulador de tráfico',policy:'Política de prueba',system:'Sistema'}[mode]||mode);
 const customerActions={session_started:'Empieza una sesión',search:'Busca comida',open_restaurant:'Compara restaurante',open_product:'Abre un producto',add_to_cart:'Añade al carrito',remove_from_cart:'Quita del carrito',checkout:'Confirma compra',abandon:'Abandona la sesión',delivery_completed:'Recibe su pedido'};
 const session=crypto.randomUUID();
 const readOnly=Boolean(document.querySelector('meta[name="atlas-readonly"]'));
@@ -35,11 +36,11 @@ function renderMap(data){
   couriers.forEach((row,i)=>{
     const [x,y]=project(row.latitude,row.longitude);
     const group=svgNode('g',{});
-    const dot=svgNode('circle',{cx:x,cy:y,r:row.courier_id===selected?13:10,class:`marker ${row.courier_id===selected?'selected':''} ${Number(row.age_ms)>10000?'stale':''}`});
+    const dot=svgNode('circle',{cx:x,cy:y,r:row.courier_id===selected?11:couriers.length>24?5:10,class:`marker ${row.courier_id===selected?'selected':''} ${Number(row.age_ms)>10000?'stale':''}`});
     const title=svgNode('title',{});title.textContent=`Repartidor ${i+1}: ${row.latitude}, ${row.longitude}`;dot.append(title);
     dot.addEventListener('click',()=>selectCourier(row.courier_id));
     const label=svgNode('text',{x,y:y+3.5,'text-anchor':'middle',class:'marker-label'});label.textContent=i+1;
-    group.append(dot,label);$('markers').append(group);
+    group.append(dot);if(couriers.length<=24||row.courier_id===selected)group.append(label);$('markers').append(group);
   });
   $('map-empty').setAttribute('visibility',couriers.length?'hidden':'visible');
   const row=couriers.find(r=>r.courier_id===selected);
@@ -75,15 +76,24 @@ function renderCustomers(data){
   const metrics=data.customer_metrics||{};
   for(const [id,key] of [['customer-sessions','sessions'],['customer-clicks','clicks'],['customer-checkouts','checkouts'],['customer-abandons','abandoned_sessions']])$(id).textContent=fmt.format(Number(metrics[key]||0));
   const sim=lastSimulation;
-  $('agent-label').textContent=sim.mode==='customers'?`${sim.agent_mode==='ollama'?'IA local · '+sim.model:'Política local · sin modelo de IA'}${sim.agent_state==='limit_reached'?' · límite de 120 llamadas alcanzado':sim.agent_state==='error'?' · decisiones detenidas por error':!sim.running?' · ejecución parada':''}${sim.agent_mode==='ollama'?` · ${sim.model_calls||0}/${sim.max_model_calls||120} llamadas`:''}`:'Flota anterior o sin ejecución de clientes';
-  $('customers-body').innerHTML=(data.customers||[]).map(c=>{
+  const hasAI=['ollama','hybrid'].includes(sim.agent_mode);
+  const modeText=sim.agent_mode==='hybrid'?`${sim.ai_customers} clientes con IA · ${sim.traffic_customers} con simulador de tráfico`:sim.agent_mode==='traffic'?`${sim.traffic_customers} clientes con simulador de tráfico · sin IA`:sim.agent_mode==='ollama'?'IA local · '+sim.model:'Política local · sin modelo de IA';
+  $('agent-label').textContent=sim.mode==='customers'?`${modeText}${sim.agent_state==='limit_reached'?' · IA: límite de llamadas alcanzado':sim.agent_state==='error'?' · IA: decisiones detenidas por error':!sim.running?' · ejecución parada':''}${hasAI?` · ${sim.model_calls||0}/${sim.max_model_calls||120} llamadas`:''}`:'Flota anterior o sin ejecución de clientes';
+  const all=data.customers||[];
+  const isAI=c=>sim.agent_mode==='ollama'||sim.agent_mode==='hybrid'&&Number(c.customer_label.replace(/\D/g,''))<=Number(sim.ai_customers);
+  const ai=all.filter(isAI);
+  const rest=all.filter(c=>!isAI(c)).sort((a,b)=>b.event_time.localeCompare(a.event_time)||a.customer_id.localeCompare(b.customer_id));
+  const visible=showAllCustomers?all:[...ai.slice(0,12),...rest.slice(0,Math.max(0,12-ai.slice(0,12).length))];
+  $('customer-list-note').textContent=`${visible.length} de ${all.length} clientes · resumen: IA y actividad reciente. Los contadores incluyen a todos.`;
+  $('toggle-customers').hidden=all.length<=12;$('toggle-customers').textContent=showAllCustomers?'Mostrar resumen':'Mostrar todos los clientes';$('toggle-customers').setAttribute('aria-expanded',String(showAllCustomers));
+  $('customers-body').innerHTML=visible.map(c=>{
     const order=(data.orders||[]).find(o=>o.order_id===c.order_id);
     const courier=(data.couriers||[]).find(p=>p.order_id===c.order_id);
     const context=c.product_name||c.restaurant_name||c.objective;
     const following=c.order_id?`<span>${escapeHTML(c.order_id.slice(0,8))} · ${escapeHTML(states[order?.status]||(c.stage==='delivered'?'Entregado':'Pendiente de publicación'))}</span>${courier&&order?.status!=='delivered'?`<button class="secondary follow-order" data-order="${escapeHTML(c.order_id)}" aria-label="Ver reparto de ${escapeHTML(c.customer_label)}">Ver reparto</button>`:''}`:'Todavía sin compra';
-    return `<tr><td><strong>${escapeHTML(c.customer_label)}</strong><small>Presupuesto ${money(c.budget_minor)}</small></td><td><strong>${escapeHTML(customerActions[c.action]||c.action)}</strong><small>${escapeHTML(context)}</small><p>${escapeHTML(c.reason)}</p></td><td>${money(c.cart_total_minor)}</td><td>${following}</td></tr>`;
+    return `<tr><td><strong>${escapeHTML(c.customer_label)}</strong><small>Presupuesto ${money(c.budget_minor)}</small><small>${escapeHTML(isAI(c)?'IA local':sim.agent_mode==='policy'?'Política de prueba':'Simulador de tráfico')}</small></td><td><strong>${escapeHTML(customerActions[c.action]||c.action)}</strong><small>${escapeHTML(context)}</small><p>${escapeHTML(c.reason)}</p></td><td>${money(c.cart_total_minor)}</td><td>${following}</td></tr>`;
   }).join('')||'<tr><td colspan="4">Inicia el modo clientes. Las decisiones aparecerán tras publicarse en ClickHouse.</td></tr>';
-  $('customer-activity').innerHTML=(data.activity||[]).map(a=>`<li><time>${clock(a.event_time)}</time><strong>${escapeHTML(a.customer_label)} · ${escapeHTML(customerActions[a.action]||a.action)}</strong><span>${escapeHTML(a.reason)} <small>${a.decision_mode==='ollama'?'Decisión del modelo':a.decision_mode==='policy'?'Política de prueba':'Sistema'}</small></span></li>`).join('')||'<li>Aún no hay acciones publicadas en esta ejecución.</li>';
+  $('customer-activity').innerHTML=(data.activity||[]).map(a=>`<li><time>${clock(a.event_time)}</time><strong>${escapeHTML(a.customer_label)} · ${escapeHTML(customerActions[a.action]||a.action)}</strong><span>${escapeHTML(a.reason)} <small>${a.decision_mode==='ollama'?'Decisión del modelo':decisionLabel(a.decision_mode)}</small></span></li>`).join('')||'<li>Aún no hay acciones publicadas en esta ejecución.</li>';
 }
 function renderOperations(data){
   lastData=data;const m=data.metrics||{};
@@ -91,7 +101,7 @@ function renderOperations(data){
   $('amount').textContent=money(m.delivered_amount_minor);
   $('order-count').textContent=`${fmt.format(Number(m.orders||0))} pedidos${data.truncated?' · lista limitada a 200':''}`;
   const labels=Object.fromEntries((data.customers||[]).map(c=>[c.customer_id,c.customer_label]));
-  $('orders-body').innerHTML=(data.orders||[]).map(row=>`<tr><td>${escapeHTML(row.order_id.slice(0,8))}</td><td>${row.customer_id?`${escapeHTML(labels[row.customer_id]||row.customer_id.slice(0,8))}<small>Sesión ${escapeHTML(row.session_id.slice(0,8))}</small>`:'Demo anterior'}</td><td>${escapeHTML(row.restaurant_id.replace('fictional-madrid-','Madrid · local '))}</td><td><span class="badge ${escapeHTML(row.status)}">${escapeHTML(states[row.status]||row.status)}</span></td><td>${money(row.amount_minor)}</td><td>${clock(row.order_created_at)}</td><td>${clock(row.promised_delivery_at)}</td></tr>`).join('')||'<tr><td colspan="7">Sin compras en esta ejecución. Esperando un checkout confirmado.</td></tr>';
+  $('orders-body').innerHTML=(data.orders||[]).map(row=>`<tr><td>${escapeHTML(row.order_id.slice(0,8))}</td><td>${row.customer_id?`${escapeHTML(labels[row.customer_id]||row.customer_id.slice(0,8))}<small>Sesión ${escapeHTML(row.session_id.slice(0,8))}</small>`:lastSimulation.mode==='customers'?'Enlace pendiente':'Demo anterior'}</td><td>${escapeHTML(row.restaurant_id.replace('fictional-madrid-','Madrid · local '))}</td><td><span class="badge ${escapeHTML(row.status)}">${escapeHTML(states[row.status]||row.status)}</span></td><td>${money(row.amount_minor)}</td><td>${clock(row.order_created_at)}</td><td>${clock(row.promised_delivery_at)}</td></tr>`).join('')||'<tr><td colspan="7">Sin compras en esta ejecución. Esperando un checkout confirmado.</td></tr>';
   const rate=data.positions_by_5s||[];const max=Math.max(1,...rate.map(r=>Number(r.positions)));
   $('rate').replaceChildren(...rate.map(row=>{const bar=document.createElement('div');bar.style.height=`${Number(row.positions)/max*100}%`;bar.title=`${clock(row.bucket)} · ${row.positions} posiciones`;return bar;}));
   renderMap(data);
@@ -120,18 +130,19 @@ async function poll(){
     renderOperations(data);$('pending').textContent=fmt.format(queue.pending);loadNavigation();
     const state=lastSimulation.error?`Simulación detenida: ${lastSimulation.error}`:lastSimulation.running?`Simulación activa · ${lastSimulation.fleet} repartidores · intervalo solicitado: ${lastSimulation.interval_seconds} s`:'Simulación parada; el histórico se conserva';
     $('status').textContent=`${state}. Última consulta: ${new Date().toLocaleTimeString('es-ES')}${lastSimulation.run_id?` · ejecución ${lastSimulation.run_id.slice(0,8)}`:''}.`;
-    showError(queue.publisher_error?`La publicación está reintentando: ${queue.publisher_error}. Los eventos aceptados siguen en cola.`:lastSimulation.error||(lastSimulation.agent_state==='error'?'Se han detenido las decisiones después de tres errores. Revisa Ollama y reinicia la ejecución; las entregas ya creadas siguen avanzando.':''));
+    showError(queue.publisher_error?`La publicación está reintentando: ${queue.publisher_error}. Los eventos aceptados siguen en cola.`:lastSimulation.error||(lastSimulation.traffic_state==='error'?'El simulador de tráfico se ha detenido por un error. Revisa la cola y reinicia la ejecución.':'')||(lastSimulation.agent_state==='error'?'Se han detenido las decisiones después de tres errores. Revisa Ollama y reinicia la ejecución; las entregas ya creadas siguen avanzando.':''));
   }catch(error){showError(`No se pudo actualizar: ${error.message}. Se conservan los datos anteriores y se reintentará.`);$('freshness').textContent='Consulta fallida · posiciones anteriores';}
   finally{fetching=false;clearTimeout(refreshTimer);refreshTimer=setTimeout(poll,2000);}
 }
 async function control(action){
   controlling=true;buttons();
-  try{lastSimulation=await request(`/api/simulation/${action}`,action==='start'?{fleet:Number($('fleet').value),interval:2,seed:42,mode:$('agent-mode').value==='legacy'?'legacy':'customers',agent_mode:$('agent-mode').value==='policy'?'policy':'ollama',customers:Number($('customer-count').value)}:{});showError('');}
+  try{lastSimulation=await request(`/api/simulation/${action}`,action==='start'?{fleet:Number($('fleet').value),interval:2,seed:42,mode:$('agent-mode').value==='legacy'?'legacy':'customers',agent_mode:$('agent-mode').value==='legacy'?'ollama':$('agent-mode').value,customers:Number($('customer-count').value)}:{});showError('');}
   catch(error){showError(error.message);}
   finally{controlling=false;buttons();await poll();}
 }
 if(!readOnly){$('start').addEventListener('click',()=>control('start'));$('stop').addEventListener('click',()=>control('stop'));}
 $('courier').addEventListener('change',()=>selectCourier($('courier').value));
+$('toggle-customers').addEventListener('click',()=>{showAllCustomers=!showAllCustomers;if(lastData)renderCustomers(lastData);});
 $('customers-body').addEventListener('click',event=>{
   const button=event.target.closest('[data-order]');if(!button)return;
   const courier=lastData?.couriers.find(c=>c.order_id===button.dataset.order);if(!courier)return;

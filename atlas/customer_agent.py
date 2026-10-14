@@ -71,3 +71,31 @@ class PolicyAgent:
         options=choices.get(action,[])
         index=min(range(len(options)),key=lambda i:options[i].get('price_minor',0)) if options else 0
         return {'action':action,'choice':index,'reason':'Política local de prueba: avanzar con una opción dentro del presupuesto.'}
+
+
+class TrafficAgent:
+    """Seeded synthetic shopper. Fast traffic generation, never labelled AI."""
+    mode='traffic'
+    model=None
+    def __init__(self,seed=42):self.seed=seed
+
+    def choose(self,context):
+        import random
+        rng=random.Random(f"{self.seed}:{context['customer_index']}:{context['revision']}")
+        stage=context['stage'];choices=context['choices'];allowed=context['allowed']
+        if stage=='idle':action='search'
+        elif stage=='results':action='open_restaurant'
+        elif stage=='restaurant':action='open_product' if choices.get('open_product') else 'abandon'
+        elif stage=='product':action='add_to_cart' if 'add_to_cart' in allowed else 'abandon'
+        elif stage=='cart':
+            action='open_product' if 'open_product' in allowed and rng.random()<.2 else 'checkout'
+            if rng.random()<.05:action='remove_from_cart'
+        else:action='abandon'
+        if context['steps']==2 and (context['customer_index']%5==4 or rng.random()<.12):action='abandon'
+        options=choices.get(action,[])
+        index=rng.randrange(len(options)) if options else 0
+        reasons={'search':'Busca opciones para su presupuesto.','open_restaurant':'Compara un restaurante del catálogo.',
+            'open_product':'Consulta un producto disponible.','add_to_cart':'Añade un producto dentro de su presupuesto.',
+            'remove_from_cart':'Revisa y modifica su carrito.',
+            'checkout':'Confirma su carrito y solicita la entrega.','abandon':'Termina la visita sin comprar.'}
+        return {'action':action,'choice':index,'reason':'Simulador de tráfico: '+reasons[action]}

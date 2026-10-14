@@ -23,12 +23,16 @@ class CommerceEngine:
             cid=self.uid('customer',i)
             budget=1400+(i%4)*400
             self.customers[cid]={'customer_id':cid,'index':i,'label':f'Cliente {i+1:02}',
+                'decision_mode':('ollama' if i<3 else 'traffic') if mode=='hybrid' else mode,
+                'traffic_next_at':start+timedelta(seconds=random.Random(seed+i).uniform(0,8)),
                 'budget':budget,'objective':f'Quiero cenar por menos de {budget/100:.2f} EUR y comprar una opción que me convenga.',
                 'cycle':0,'revision':0,'stage':'idle','restaurant_id':None,'product_id':None,
                 'cart':{},'steps':0,'order_id':None,'ready_at':start,'session_id':self.uid('session',i,0)}
         for i in range(fleet):
             cid=self.uid('courier',i)
-            self.couriers[cid]={'id':cid,'position':restaurant_location(i),'order_id':None}
+            origin=restaurant_location(i);rng=random.Random(f'{seed}:courier:{i}')
+            position=(origin[0]+rng.uniform(-.002,.002),origin[1]+rng.uniform(-.003,.003))
+            self.couriers[cid]={'id':cid,'position':position,'order_id':None}
 
     def uid(self,*parts):return str(uuid5(self.namespace,':'.join(map(str,parts))))
 
@@ -37,7 +41,7 @@ class CommerceEngine:
 
     def context(self,cid,at):
         c=self.customers[cid]
-        if c['ready_at']>at or c['stage']=='waiting_delivery':return None
+        if c['ready_at']>at or c['stage'] in {'waiting_delivery','abandoned','delivered'}:return None
         remaining=c['budget']-self.total(c)
         # Compact candidate catalog; identifiers are resolved by Python, never invented by the model.
         shops=list(self.shops.values())
@@ -73,14 +77,15 @@ class CommerceEngine:
             'allowed':allowed,'choices':choices,'revision':c['revision']}
 
     def activity(self,c,at,action,reason,mode=None):
+        mode=mode or c['decision_mode']
         return {'_stream':'customer_activity','schema_version':1,
             'event_id':self.uid('activity',c['customer_id'],c['revision']),
             'simulation_run_id':self.run_id,'customer_id':c['customer_id'],'session_id':c['session_id'],
             'event_time':iso(at),'customer_label':c['label'],'objective':c['objective'],
             'budget_minor':c['budget'],'action':action,'stage':c['stage'],'reason':reason,
             'restaurant_id':c['restaurant_id'],'product_id':c['product_id'],'order_id':c['order_id'],
-            'cart_total_minor':self.total(c),'decision_mode':mode or self.mode,
-            'model':self.model if (mode or self.mode)=='ollama' else None,'source_kind':'synthetic'}
+            'cart_total_minor':self.total(c),'decision_mode':mode,
+            'model':self.model if mode=='ollama' else None,'source_kind':'synthetic'}
 
     def decide(self,cid,revision,decision,at):
         c=self.customers[cid];context=self.context(cid,at)
@@ -94,7 +99,7 @@ class CommerceEngine:
         if (options and index>=len(options)) or (not options and index!=0):
             raise ValueError('La opción no pertenece al catálogo visible.')
         choice=options[index] if options else None
-        mode=self.mode
+        mode=c['decision_mode']
         if c['steps']>=14:action='abandon';reason='Límite de pasos por sesión alcanzado.';mode='system'
         c['revision']+=1;c['steps']+=1
         mapping={'search':'search','open_restaurant':'restaurant_opened','open_product':'product_opened',
@@ -114,7 +119,7 @@ class CommerceEngine:
         elif action=='abandon':c['stage']='abandoned';c['ready_at']=at+timedelta(seconds=8)
         elif action=='checkout':
             if not c['cart'] or self.total(c)>c['budget']:raise ValueError('Carrito vacío o fuera de presupuesto.')
-            if sum(o['status'] not in {'delivered','cancelled'} for o in self.orders.values())>=100:
+            if sum(o['status'] not in {'delivered','cancelled'} for o in self.orders.values())>=max(100,len(self.customers)*2):
                 raise ValueError('La operación tiene demasiados pedidos pendientes.')
             c['order_id']=self.uid('order',c['session_id']);c['stage']='waiting_delivery'
         nav=validate({'schema_version':1,'event_id':self.uid('click',cid,c['revision']),
@@ -122,7 +127,7 @@ class CommerceEngine:
             'section':{'search':'search','open_restaurant':'restaurants','open_product':'menu','add_to_cart':'cart',
                 'remove_from_cart':'cart','checkout':'checkout','abandon':'session'}[action],
             'city_id':'madrid','restaurant_id':c['restaurant_id'],'product_id':c['product_id'],
-            'order_id':c['order_id'],'source':'atlas-customer-agent','source_kind':'synthetic','simulation_run_id':self.run_id})
+            'order_id':c['order_id'],'source':'atlas-customer-'+mode,'source_kind':'synthetic','simulation_run_id':self.run_id})
         rows=[nav,self.activity(c,at,action,reason,mode)]
         if action=='checkout':
             oid=c['order_id'];rng=random.Random(oid);shop=self.shops[c['restaurant_id']]

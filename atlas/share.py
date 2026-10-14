@@ -86,7 +86,8 @@ class Handler(BaseHTTPRequestHandler):
                         body = {k: body[k] for k in ('pending', 'published', 'publisher_phase') if k in body}
                     if endpoint == 'simulation':
                         body = {k: body[k] for k in ('running', 'fleet', 'interval_seconds', 'run_id','mode','customers',
-                            'agent_mode','model','agent_state','decisions','model_calls','max_model_calls') if k in body}
+                            'agent_mode','model','agent_state','decisions','model_calls','max_model_calls',
+                            'ai_customers','traffic_customers','traffic_decisions','traffic_state') if k in body}
                     with LOCK:
                         CACHE[path] = (time.monotonic(), body)
                         while len(CACHE) > 128:

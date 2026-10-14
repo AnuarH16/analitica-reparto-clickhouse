@@ -67,12 +67,13 @@ class ClickHouse:
             "city_id,latitude,longitude,speed_kmh,accuracy_m,toString(event_time) AS event_time,"
             "toString(ingested_at) AS ingested_at,dateDiff('millisecond',p.event_time,now64(3)) AS age_ms,"
             "dateDiff('millisecond',p.event_time,p.ingested_at) AS receipt_delay_ms "
-            "FROM delivery_atlas.courier_latest AS p WHERE simulation_run_id={run:UUID} ORDER BY courier_id LIMIT 100",params)
+            "FROM delivery_atlas.courier_latest AS p WHERE simulation_run_id={run:UUID} ORDER BY courier_id LIMIT 150",params)
         orders=self.query("SELECT toString(order_id) AS order_id,toString(courier_id) AS courier_id,"
             "city_id,restaurant_id,status,amount_minor,currency,pickup_lat,pickup_lon,dropoff_lat,dropoff_lon,"
             "toString(order_created_at) AS order_created_at,toString(promised_delivery_at) AS promised_delivery_at,"
-            "toString(event_time) AS event_time FROM delivery_atlas.order_latest "
-            "WHERE simulation_run_id={run:UUID} ORDER BY event_time DESC LIMIT 200",params)
+            "toString(event_time) AS event_time FROM delivery_atlas.order_latest AS o "
+            "WHERE simulation_run_id={run:UUID} ORDER BY (o.status IN ('delivered','cancelled')), "
+            "(o.courier_id=toUUID('00000000-0000-0000-0000-000000000000')),o.event_time DESC LIMIT 200",params)
         metrics=self.query("SELECT count() AS orders,countIf(status='delivered') AS delivered,"
             "countIf(status='cancelled') AS cancelled,countIf(status NOT IN ('delivered','cancelled')) AS active,"
             "sumIf(amount_minor,status='delivered') AS delivered_amount_minor,"
@@ -84,6 +85,15 @@ class ClickHouse:
             "GROUP BY bucket ORDER BY bucket",params)
         customer_data=self.customers(run_id)
         links={r['order_id']:r for r in customer_data['purchases']}
+        missing=[r['order_id'] for r in orders if r['order_id'] not in links]
+        if missing:
+            # Recent purchases and current orders are different windows once
+            # hundreds of clients buy. Resolve every displayed order's link.
+            link_params={**params,'param_ids':'['+','.join("'"+i+"'" for i in missing)+']'}
+            older=self.query("SELECT toString(order_id) AS order_id,toString(customer_id) AS customer_id,"
+                "toString(session_id) AS session_id,toString(checkout_event_id) AS checkout_event_id,items,decision_mode "
+                "FROM delivery_atlas.customer_orders AS p FINAL WHERE simulation_run_id={run:UUID} AND p.order_id IN {ids:Array(UUID)}",link_params)
+            links.update({r['order_id']:r for r in older})
         for row in orders:
             if row['order_id'] in links:
                 row.update({k:v for k,v in links[row['order_id']].items() if k not in {'event_time','amount_minor'}})

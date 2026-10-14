@@ -21,7 +21,7 @@ La imagen Ollama está fijada por digest (versión comprobada `0.40.4`); la evid
 - **Política local (policy):** baseline reproducible, explícitamente etiquetado sin modelo de IA. Útil para pruebas o un ordenador sin Ollama.
 - **Solo flota anterior (legacy):** conserva el escenario anterior y los generadores históricos. Sus sesiones y pedidos independientes no se reinterpretan como compras enlazadas.
 
-La API `POST /api/simulation/start` admite `mode=customers`, `agent_mode=ollama|policy`, `customers` (1-24), `fleet` (1-50), `interval` (1-10 s) y `seed`. Los clientes tienen una sesión, presupuesto y objetivo. Pueden buscar, comparar, abrir productos, añadir/quitar del carrito, comprar y abandonar. Un pedido espera a que haya un repartidor disponible.
+La API `POST /api/simulation/start` admite `mode=customers`, `agent_mode=ollama|policy|hybrid|traffic`, `customers` (1-24 para IA/política; 1-500 para modos masivos), `fleet` (1-150), `interval` (1-10 s) y `seed`. Los clientes tienen una sesión, presupuesto y objetivo. Pueden buscar, comparar, abrir productos, añadir/quitar del carrito, comprar y abandonar. Un pedido espera a que haya un repartidor disponible.
 
 ## Identidad del recorrido
 
@@ -50,7 +50,7 @@ El publicador hace INSERTs por tabla. No hay una transacción entre ClickHouse y
 
 La decisión se valida contra la revisión vigente del cliente: una respuesta antigua no compra sobre otra sesión. Parar impide aceptar respuestas del modelo que todavía estén en vuelo; la inferencia ya enviada puede terminar después. Reiniciar no reconstruye los carritos ni reanuda automáticamente la ejecución anterior; los hechos aceptados y pendientes sí permanecen en la cola/base.
 
-Máximo 14 pasos por sesión, cinco unidades en el carrito, 100 pedidos activos y 120 llamadas de modelo por run. Tras tres decisiones fallidas consecutivas se detienen nuevas decisiones y el panel lo indica; los pedidos ya creados siguen avanzando. El límite de llamadas también pausa las decisiones. Parar e iniciar crea otra ejecución. Son límites operativos de una demo local.
+Máximo 14 pasos por sesión, cinco unidades en el carrito, `max(100, clientes*2)` pedidos activos y 120 llamadas de modelo por run. Tras tres decisiones fallidas consecutivas se detienen nuevas decisiones y el panel lo indica; los pedidos ya creados siguen avanzando. El límite de llamadas también pausa las decisiones. Parar e iniciar crea otra ejecución. Son límites operativos de una demo local.
 
 ## Qué consultar en el dashboard
 
@@ -103,3 +103,31 @@ Se observaron rechazos transitorios de lecturas por el límite global de memoria
 - Revisado escritorio y móvil de 390 px: sin desbordamiento horizontal de la página. Las tablas conservan desplazamiento horizontal dentro de su contenedor.
 - Captura de la versión publicada: `docs/capturas/clientes-ia-publico.png`; el clic «Ver reparto» mostró el mismo cliente, sesión, checkout y pedido en el detalle del mapa.
 - Las capturas de escritorio/móvil anteriores registran la revisión previa a convertir los importes enviados al modelo a euros. La captura pública corresponde a la versión final. Las explicaciones de un modelo pequeño pueden ser imprecisas; la validación y el importe de la compra dependen del catálogo y del carrito, no de ese texto.
+
+## Tráfico concurrente — ampliación del 14/10
+
+El modo **IA + tráfico masivo (hybrid)** combina los tres primeros clientes con Ollama y el resto con un simulador de tráfico explícitamente etiquetado. Escenario activado: **200 clientes y 80 repartidores**. El modo **Simulador de tráfico (traffic)** no usa un modelo. IA y política anteriores conservan su funcionamiento y se limitan a 24 clientes; los modos masivos admiten hasta 500 clientes y 150 repartidores.
+
+El simulador elige productos dentro del presupuesto, permite ampliar o modificar carritos y también abandonar. Uno de cada cinco perfiles de tráfico explora y abandona siempre: vuelve a visitar la aplicación y mantiene clics continuos mientras otros esperan la entrega. Los demás también pueden abandonar una visita con una probabilidad configurada del 12 %. Son parámetros de demo, no tasas observadas. Pausas de 1,2–3,8 s por acción y arranques escalonados de hasta ocho segundos distribuyen la actividad. Un hilo procesa por lotes todos los clientes elegibles cada medio segundo: una sola copia del estado y transacción de cola por lote, sin cientos de hilos ni llamadas de IA. Un segundo hilo decide para los tres clientes de IA; el hilo GPS continúa independiente. La semilla reproduce elecciones y pausas, pero la ejecución real depende del reloj y de la inferencia.
+
+Todas las compras siguen usando el mismo checkout y la misma cesta, asignación y GPS. El límite de pedidos activos pasa a `max(100, clientes*2)` para permitir compras que esperan un repartidor. Llegar a 120 llamadas o a tres errores de Ollama pausa solo la IA; el tráfico continúa. Si la cola está llena, el lote de tráfico se descarta en memoria y se reintenta posteriormente; un fallo del hilo GPS todavía detiene la ejecución completa.
+
+El dashboard muestra doce clientes en el resumen (los tres de IA y actividad reciente), con un botón para verlos todos. Los contadores incluyen el conjunto completo. Los marcadores de flotas grandes son más pequeños y solo el seleccionado lleva número; todos se pueden elegir en la lista. Sus coordenadas proceden de ClickHouse. Las posiciones iniciales se distribuyen alrededor de las zonas del catálogo para evitar que ochenta repartidores comiencen en doce puntos superpuestos.
+
+```bash
+# Tras arrancar los perfiles atlas y ai y descargar el modelo:
+curl -X POST http://127.0.0.1:8001/api/simulation/start \
+  -H 'Content-Type: application/json' \
+  -d '{"mode":"customers","agent_mode":"hybrid","customers":200,"fleet":80,"interval":2,"seed":42}'
+python3 scripts/check_traffic.py
+```
+
+Parar la ejecución anterior con el control local antes de iniciar otra. `docs/evidencia-trafico.json` recoge clientes, pico de repartidores asignados simultáneamente, movimientos observados, decisiones publicadas, entregas y cola. No representa usuarios de Uber Eats ni un benchmark de máxima capacidad.
+
+El listado de 200 pedidos prioriza los activos y asignados. El servidor resuelve sus enlaces de compra por order_id, incluso si su checkout ya está fuera de las últimas 200 compras, para conservar cliente y sesión en el mapa. Los contadores de pedidos siguen incluyendo todo el run.
+
+### Reloj y compras concurrentes
+
+La carga detectó una carrera: el hilo GPS capturaba `now` antes de entrar en el bloqueo del estado. Una compra podía confirmarse durante esa espera y aparecer creada después del timestamp del GPS. La validación rechazaba la asignación y detenía la ingesta. El reloj se captura ahora dentro del bloqueo y después de copiar el estado. La nueva prueba retiene el GPS mientras confirma un checkout: falla con la implementación anterior y pasa con la corregida. Las 20 pruebas pasan. No se relajan las restricciones temporales del pedido.
+
+Las cifras de `evidencia-trafico.json` son acumuladas por run; su ventana mide únicamente la observación de movimiento. `evidencia-enlaces-trafico.json` registra, en una ejecución anterior, tres enlaces resueltos fuera de las últimas 200 compras. El intervalo GPS solicitado sigue siendo dos segundos y el panel muestra el retraso efectivo.

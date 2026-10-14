@@ -110,12 +110,14 @@ class Simulator:
             return dict(self.state)
 
     def start(self,fleet=12,interval=2,seed=42,mode='legacy',customers=3,agent_mode='ollama',ch=None):
-        if type(fleet) is not int or not 1<=fleet<=50 or type(interval) not in (int,float) or not 1<=interval<=10:
-            raise ValueError('Usar 1 a 50 repartidores e intervalo de 1 a 10 segundos.')
+        if type(fleet) is not int or not 1<=fleet<=150 or type(interval) not in (int,float) or not 1<=interval<=10:
+            raise ValueError('Usar 1 a 150 repartidores e intervalo de 1 a 10 segundos.')
         if type(seed) is not int or not 0<=seed<=4294967295:
             raise ValueError('Semilla entera entre 0 y 4294967295.')
-        if mode not in {'legacy','customers'} or agent_mode not in {'ollama','policy'} or type(customers) is not int or not 1<=customers<=24:
-            raise ValueError('Modo o clientes incorrectos; usar 1 a 24 clientes.')
+        if mode not in {'legacy','customers'} or agent_mode not in {'ollama','policy','hybrid','traffic'} or type(customers) is not int or not 1<=customers<=500:
+            raise ValueError('Modo o clientes incorrectos; usar 1 a 500 clientes.')
+        if agent_mode in {'ollama','policy'} and customers>24:
+            raise ValueError('Para más de 24 clientes usa IA + tráfico masivo o simulador de tráfico.')
         with self.lock:
             if self.thread and self.thread.is_alive():
                 raise ValueError('La simulación ya está activa; pararla antes de iniciar otra.')

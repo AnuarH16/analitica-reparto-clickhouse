@@ -155,7 +155,7 @@ class CommerceEngine:
         GPS remain synthetic, exactly like AI-customer orders.
         Returns [] when the same order_id was already accepted (idempotent retry)."""
         if not isinstance(request,dict) or set(request)!=MANUAL_FIELDS:
-            raise ValueError('Checkout: enviar '+', '.join(sorted(MANUAL_FIELDS))+'.')
+            raise ValueError('Checkout: send '+', '.join(sorted(MANUAL_FIELDS))+'.')
         ids={k:str(UUID(request[k])) for k in ('order_id','customer_id','session_id','checkout_event_id')
              if isinstance(request[k],str)}
         if len(ids)!=4:raise ValueError('Checkout: UUID identifiers required.')

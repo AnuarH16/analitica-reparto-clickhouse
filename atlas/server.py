@@ -104,12 +104,12 @@ def make_handler(store, ch, publisher, simulator):
                     return self.send_json(result,202 if result['state']=='queued' else 200)
                 if route=='/api/operations':
                     if not isinstance(data,dict) or set(data)!={'kind','events'} or not isinstance(data['events'],list) or not 1<=len(data['events'])<=MAX_BATCH:
-                        raise ValueError('Enviar {kind,events} con 1 a 5000 eventos.')
+                        raise ValueError('Send {kind,events} with 1 to 5000 events.')
                     events=[validate_operation(data['kind'],e) for e in data['events']]
                     result=store.accept(events)
                     return self.send_json(result,202 if result['accepted'] else 200)
                 if not isinstance(data, dict) or set(data) != {'events'} or not isinstance(data['events'], list) or not 1 <= len(data['events']) <= MAX_BATCH:
-                    raise ValueError('Enviar {events: [...]} con 1 a 5000 eventos.')
+                    raise ValueError('Send {events: [...]} with 1 to 5000 events.')
                 events = [validate(e) for e in data['events']]
                 result = store.accept(events)
                 self.send_json(result, 202 if result['accepted'] else 200)
@@ -138,7 +138,7 @@ def make_handler(store, ch, publisher, simulator):
                 if parsed.path=='/api/order':
                     filters=parse_qs(parsed.query,keep_blank_values=True)
                     if set(filters)!={'run_id','order_id'} or any(len(v)!=1 for v in filters.values()):
-                        raise ValueError('Enviar run_id y order_id una sola vez.')
+                        raise ValueError('Send run_id and order_id exactly once.')
                     run=str(UUID(filters['run_id'][0]));order=str(UUID(filters['order_id'][0]))
                     return self.send_json({'run_id':run,'order_id':order,'order':ch.order(run,order)})
                 if parsed.path in {'/api/operations','/api/track'}:

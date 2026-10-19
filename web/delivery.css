@@ -1,7 +1,7 @@
-/* Miniapp comercial de Delivery Atlas.
-   Misma familia visual que el panel de operación (DESIGN.md): fondo gris claro,
-   superficies blancas, verde oscuro para la acción principal y la selección,
-   tipografía de sistema (sin descargas en una demo local) y sin animación decorativa. */
+/* Delivery Atlas commercial mini-app.
+   Same visual family as the operations dashboard (DESIGN.md): light grey background,
+   white surfaces, dark green for the main action and selection,
+   system font (no downloads in a local demo) and no decorative animation. */
 :root {
   --basil: #24553d;
   --basil-hover: #1c4431;
@@ -23,7 +23,7 @@ button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--basil); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
-/* La app ocupa una columna de móvil; en escritorio la cinta de eventos va a su lado. */
+/* The app takes one mobile-width column; on desktop the event tape sits beside it. */
 .layout { display: grid; grid-template-columns: minmax(0, 520px) minmax(280px, 400px); justify-content: center; gap: 32px; padding: 24px 16px; min-height: 100vh; }
 .app { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 0 20px 96px; min-height: calc(100vh - 48px); }
 
@@ -39,7 +39,7 @@ h2 { font: 700 22px/1.2 var(--display); margin: 0 0 6px; }
 .notice { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: #fbeceb; color: var(--error); font-size: 14px; }
 .notice a { color: var(--error); font-weight: 600; }
 
-/* Búsqueda y filtros */
+/* Search and filters */
 .search { display: flex; gap: 8px; }
 .search input { flex: 1; min-width: 0; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--paper); }
 .search input:focus { border-color: var(--basil); background: var(--card); }
@@ -108,7 +108,7 @@ h2 { font: 700 22px/1.2 var(--display); margin: 0 0 6px; }
 .price { font: 700 26px var(--display); margin: 12px 0 20px; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
 
-/* Cinta de eventos: cada acción imprime un recibo con su estado real en la API. */
+/* Event tape: each action prints a receipt with its real status in the API. */
 .tape { align-self: start; position: sticky; top: 24px; max-height: calc(100vh - 48px); display: flex; flex-direction: column; background: var(--ink); color: #eaf1ec; border-radius: 22px; overflow: hidden; }
 .tape-head { padding: 20px 20px 12px; }
 .tape-head h2 { color: #fff; font-size: 19px; }
@@ -129,7 +129,7 @@ h2 { font: 700 22px/1.2 var(--display); margin: 0 0 6px; }
 .tape-list li[data-state="sending"] .state, .tape-list li[data-state="retry"] .state { color: var(--late); }
 .tape-list li[data-state="fail"] .state { color: var(--error); }
 
-/* Móvil: la cinta pasa debajo de la app, con altura limitada. */
+/* Mobile: the tape moves below the app, with a limited height. */
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 560px); padding: 0; gap: 0; }
   .app { border: 0; border-radius: 0; min-height: auto; padding: 0 16px 32px; }

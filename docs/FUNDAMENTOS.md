@@ -6,6 +6,37 @@ ClickHouse es una **base de datos columnar OLAP con SQL**. En una clasificación
 
 La idea de producto se inspira en la analítica de navegación que necesitaría una plataforma de reparto: volumen por tiempo, exploración de productos o categorías, acciones de cesta y compra. **Las fuentes reales disponibles no son Uber Eats ni Glovo**. OTTO sí contiene clics explícitos; REES46 contiene vistas, carritos y compras. No se suman como si fueran el mismo suceso o la misma población.
 
+## Dónde se usa ClickHouse
+
+El proyecto empezó en 2009 para una plataforma de analítica web y se publicó como código abierto en 2016, con licencia Apache 2 ([historia oficial](https://clickhouse.com/docs/about-us/history)). En la lista oficial de usuarios, Yandex Metrica aparece como el producto principal construido sobre ClickHouse.
+
+La documentación agrupa sus usos habituales en cuatro familias ([casos de uso](https://clickhouse.com/docs/use-cases)):
+
+| Uso | Por qué encaja |
+|---|---|
+| Analítica en tiempo real y series temporales | Datos con marca de tiempo que llegan sin parar y se agregan por intervalos |
+| Observabilidad: logs, métricas y trazas | Mucho volumen que se añade y casi nunca se modifica; se filtra por tiempo y servicio |
+| Almacén analítico y consultas sobre data lakes | Agregaciones sobre tablas muy grandes con SQL |
+| Machine learning e IA generativa | Explorar y preparar grandes conjuntos de datos para modelos |
+
+Algunos ejemplos de la [lista oficial de usuarios](https://clickhouse.com/docs/about-us/adopters):
+
+| Empresa | Sector | Uso declarado |
+|---|---|---|
+| Cloudflare | CDN | Análisis de tráfico |
+| Uber | Transporte | Logs |
+| eBay | Comercio electrónico | Logs, métricas y eventos |
+| GitLab | Desarrollo y DevOps | Monitorización del rendimiento de aplicaciones (APM) |
+| Spotify | Música | Experimentación |
+| Deutsche Bank | Finanzas | Analítica de negocio (BI) |
+| Instacart | Reparto | Ingeniería e infraestructura de datos |
+| DoorDash | Comercio electrónico | Monitorización |
+| Zomato | Pedidos de comida a domicilio | Logs y reparto de comida |
+
+Las entradas las aportan las propias empresas, a menudo con charlas o artículos de años anteriores. No demuestran que lo sigan usando hoy ni a qué escala.
+
+Todos estos usos comparten un patrón: muchos eventos que se añaden y casi no se modifican, y consultas que agregan millones de filas leyendo pocas columnas. Es el mismo trabajo que necesita la plataforma de reparto ficticia de este proyecto. Varias empresas de reparto de la lista lo usan para logs, monitorización e infraestructura de datos.
+
 ## Modelo de datos
 
 | Tabla | Procedencia | Grano | Motor y orden |
@@ -42,6 +73,33 @@ El resultado medido pertenece a **este equipo, estas tablas y esta pregunta**. N
 - Inserción: el ETL usa lotes; el dashboard envía un evento nuevo por clic; el reproductor ingresa lotes pequeños.
 - Lectura: `SELECT` con filtros temporales, `GROUP BY`, `countIf`, `uniqCombined64` y agregados.
 - Actualización y borrado: `scripts/crud_demo.py` ejecuta `ALTER TABLE ... UPDATE/DELETE` en una tabla de ensayo. Son mutaciones más costosas que el patrón de añadir eventos y consultar agregados; no se modifica masivamente el archivo histórico para mostrar CRUD.
+
+## Interfaces, clientes y herramientas
+
+El servidor acepta conexiones por varias interfaces ([interfaces](https://clickhouse.com/docs/interfaces/overview), [puertos](https://clickhouse.com/docs/guides/sre/network-ports)):
+
+| Interfaz | Puerto por defecto | En este proyecto |
+|---|---:|---|
+| HTTP | 8123 (8443 con TLS) | La usan la API de Atlas y los scripts de Python. Compose la publica en `127.0.0.1:8124` |
+| Protocolo nativo TCP | 9000 | Lo usa `clickhouse-client` dentro del contenedor. No se publica fuera |
+| Emulación de MySQL y PostgreSQL | 9004 y 9005 | No se usan |
+| gRPC | 9100 | No se usa |
+
+Herramientas disponibles:
+
+- **Consola:** `clickhouse-client`, por ejemplo `docker exec -it bd2-clickhouse clickhouse-client --user demo --password demo`.
+- **Interfaces web del propio servidor:** `/play` para lanzar SQL y `/dashboard` con gráficas del servidor. Con nuestro Compose están en http://127.0.0.1:8124/play y http://127.0.0.1:8124/dashboard.
+- **Librerías oficiales** ([clientes por lenguaje](https://clickhouse.com/docs/integrations/language-clients)): Python (`clickhouse-connect`), JavaScript, Go, Java (también JDBC y R2DBC), C#, Rust, C++ y C. También hay drivers JDBC, ODBC y ADBC para herramientas de BI.
+- **Visualización:** Grafana con el plugin `grafana-clickhouse-datasource`, que usaba la versión anterior de este repositorio.
+
+**Por qué Atlas usa HTTP con la biblioteca estándar de Python.** `atlas/clickhouse.py` envía el SQL por HTTP con `urllib`:
+
+- No añade dependencias: la imagen de la API y los scripts solo necesitan Python.
+- Es la interfaz que también usa el cliente oficial, `clickhouse-connect` ([cliente de Python](https://clickhouse.com/docs/integrations/python)).
+- Las consultas del panel pasan los valores como parámetros tipados del servidor (`{run:UUID}` con `param_run`), sin concatenarlos en el SQL.
+- Las inserciones van por lotes con `INSERT … FORMAT JSONEachRow`.
+
+El coste es escribir a mano la autenticación, el formato de las respuestas y el manejo de errores, que `clickhouse-connect` ya resuelve.
 
 ## Calidad del dato y límites
 

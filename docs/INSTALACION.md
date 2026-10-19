@@ -1,26 +1,26 @@
-# Instalación reproducible
+# Reproducible installation
 
-Para desarrollar la plataforma ficticia sin descargar los datasets históricos, seguir [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md). Las instrucciones siguientes corresponden al laboratorio de grandes datasets.
+To develop the fictional platform without downloading the historical datasets, follow [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md). The instructions below are for the large-dataset lab.
 
-## Requisitos
+## Requirements
 
-- Docker Desktop u OrbStack con `docker compose`.
-- Python 3.10 o posterior; los scripts propios utilizan su biblioteca estándar.
-- Puertos locales 8124 (ClickHouse) y 8000 (dashboard).
-- Para **OTTO solamente**, al menos 20 GB libres. Para los siete CSV.gz REES46 y la tabla de estrés de mil millones, recomendamos **60 GB libres** antes de empezar. El espacio exacto depende de la compresión y las fusiones de partes.
-- Hacer las descargas y cargas **antes de clase**. No están pensadas para los 10 minutos de demo.
-- En Docker con unos 4 GB de memoria, ejecutar **REES46 y escala de forma secuencial**, tal como están ordenados abajo. Los cargadores pausan temporalmente las fusiones de su tabla para reducir picos de memoria y las reanudan al terminar. `clickhouse-config.xml` limita a cuatro las fusiones simultáneas al arrancar el servidor; este ajuste evita que las fusiones de los conjuntos grandes saturen la memoria durante la demo.
+- Docker Desktop or OrbStack with `docker compose`.
+- Python 3.10 or later; our scripts use its standard library.
+- Local ports 8124 (ClickHouse) and 8000 (dashboard).
+- For **OTTO only**, at least 20 GB free. For the seven REES46 CSV.gz files and the billion-row stress table, we recommend **60 GB free** before starting. The exact space depends on compression and part merges.
+- Do the downloads and loads **before class**. They are not meant for the 10 minutes of demo.
+- In Docker with about 4 GB of memory, run **REES46 and scale sequentially**, in the order below. The loaders temporarily pause merges on their table to reduce memory peaks and resume them when they finish. `clickhouse-config.xml` limits simultaneous merges to four when the server starts; this setting prevents merges of the large datasets from saturating memory during the demo.
 
-## 1. Arrancar ClickHouse
+## 1. Start ClickHouse
 
 ```bash
 docker compose -f compose.yaml up -d
 docker compose -f compose.yaml ps
 ```
 
-El contenedor `bd2-clickhouse` debe figurar como `healthy`. La configuración local usa ClickHouse 25.8, base `delivery`, usuario/contraseña de demostración `demo` y HTTP en `127.0.0.1:8124`.
+The `bd2-clickhouse` container must show as `healthy`. The local configuration uses ClickHouse 25.8, the `delivery` database, the demo user/password `demo` and HTTP on `127.0.0.1:8124`.
 
-## 2. OTTO: clics reales y vista materializada
+## 2. OTTO: real clicks and materialized view
 
 ```bash
 python3 scripts/otto.py download
@@ -28,11 +28,11 @@ python3 scripts/otto.py load
 python3 scripts/rollup.py
 ```
 
-El ZIP se lee en streaming; no hay que descomprimirlo entero. Su SHA-256 esperado es `ae11a23676ba29eeeb6e1348b81e353c530da3bc059353cad67247e9616acb2f`. La fuente original es [OTTO/Kaggle](https://github.com/otto-de/recsys-dataset); por facilidad se usa un [espejo público](https://huggingface.co/datasets/hazemessam/otto-recsys). Se cotejan **194.720.954** clics, **16.896.191** carritos y **5.098.951** pedidos con lo publicado. `rollup.py` crea la vista materializada **después** de la carga inicial y hace el backfill una sola vez, evitando miles de partes pequeñas durante la importación. El agregado diario debe tener **87 claves día/tipo** que suman **216.716.096** eventos; puede haber más filas físicas antes de que terminen las fusiones.
+The ZIP is read as a stream; it does not need to be fully decompressed. Its expected SHA-256 is `ae11a23676ba29eeeb6e1348b81e353c530da3bc059353cad67247e9616acb2f`. The original source is [OTTO/Kaggle](https://github.com/otto-de/recsys-dataset); for convenience a [public mirror](https://huggingface.co/datasets/hazemessam/otto-recsys) is used. **194,720,954** clicks, **16,896,191** carts and **5,098,951** orders are checked against the published figures. `rollup.py` creates the materialized view **after** the initial load and performs the backfill once, avoiding thousands of small parts during the import. The daily aggregate must have **87 day/type keys** adding up to **216,716,096** events; there may be more physical rows until the merges finish.
 
-Para ensayar con menos filas, `python3 scripts/otto.py load --limit 1000000 --reset` reemplaza el archivo y su agregado. Después, `python3 scripts/otto.py load --reset` carga el conjunto completo. No utilizar `--reset` por accidente una vez completada la carga.
+To rehearse with fewer rows, `python3 scripts/otto.py load --limit 1000000 --reset` replaces the archive and its aggregate. Afterwards, `python3 scripts/otto.py load --reset` loads the full dataset. Do not use `--reset` by accident once the load is complete.
 
-## 3. REES46: siete meses de otro marketplace
+## 3. REES46: seven months of another marketplace
 
 ```bash
 python3 scripts/rees46.py download
@@ -40,9 +40,9 @@ python3 scripts/rees46.py load
 python3 scripts/rees46.py status
 ```
 
-Los siete archivos comprimidos se guardan en `data/rees46/`. El script verifica el tamaño publicado por el servidor, la descompresión completa y los recuentos por mes. `data/rees46/manifest.json` registra vistas, carritos y compras. Cada archivo se lee en streaming y se inserta en lotes de 200.000 filas para limitar memoria; los datos son reales, históricos y anonimizados. Si ClickHouse alcanza su límite de memoria, el cargador reintenta hasta diez veces desde el último lote confirmado. Tras una interrupción externa, `load --resume-partial` salta los lotes ya confirmados, siempre que el recuento sea múltiplo de 200.000; `--replace-partial` reconstruye **solo el mes incompleto** cuando no hay un punto de reanudación seguro. Los meses ya verificados se conservan. También se puede descargar o cargar un solo mes con `--month 2019-Oct`.
+The seven compressed files are saved in `data/rees46/`. The script verifies the size published by the server, full decompression and the counts per month. `data/rees46/manifest.json` records views, carts and purchases. Each file is read as a stream and inserted in batches of 200,000 rows to limit memory; the data is real, historical and anonymized. If ClickHouse hits its memory limit, the loader retries up to ten times from the last confirmed batch. After an external interruption, `load --resume-partial` skips the batches already confirmed, as long as the count is a multiple of 200,000; `--replace-partial` rebuilds **only the incomplete month** when there is no safe resume point. Months already verified are kept. A single month can also be downloaded or loaded with `--month 2019-Oct`.
 
-## 4. Escala derivada y benchmark
+## 4. Derived scale and benchmark
 
 ```bash
 python3 scripts/scale.py
@@ -51,27 +51,27 @@ python3 scripts/check.py
 python3 scripts/report.py
 ```
 
-`scale.py` exige el OTTO completo y genera cinco escenarios etiquetados de **216.716.096 filas cada uno** mediante `INSERT SELECT`. Su tabla es sintética y se mantiene separada. `benchmark.py` compara archivo y agregado, verifica que el resultado sea idéntico y guarda `data/query-benchmark.json` con tiempo, filas leídas y bytes leídos. `check.py` audita los recuentos; `report.py` redacta [RESULTADOS.md](RESULTADOS.md) desde los manifiestos y las medidas. Ejecutadlos **después** de terminar las cargas para que las mediciones no compitan con ellas.
+`scale.py` requires the full OTTO dataset and generates five labelled scenarios of **216,716,096 rows each** with `INSERT SELECT`. Its table is synthetic and kept separate. `benchmark.py` compares archive and aggregate, verifies that the result is identical and saves `data/query-benchmark.json` with time, rows read and bytes read. `check.py` audits the counts; `report.py` writes [RESULTADOS.md](RESULTADOS.md) from the manifests and the measurements. Run them **after** the loads finish so the measurements do not compete with them.
 
-## 5. Panel y demo
+## 5. Dashboard and demo
 
-Para habilitar también el panel del sector de reparto, ejecutar `python3 scripts/eleme.py init` y abrir [Ele.me](http://127.0.0.1:8000/eleme.html). La descarga oficial necesita cuenta Tianchi; el procedimiento y las comprobaciones previas del primer ZIP están en [ELEME.md](ELEME.md). En este equipo ya está importada la primera parte D1_0: 2.170.299 muestras. En una instalación nueva el panel muestra el estado vacío hasta completar una carga; los 146 M declarados nunca se muestran como un recuento local.
+To also enable the delivery-industry dashboard, run `python3 scripts/eleme.py init` and open [Ele.me](http://127.0.0.1:8000/eleme.html). The official download needs a Tianchi account; the procedure and the preliminary checks of the first ZIP are in [ELEME.md](ELEME.md). On this machine the first part, D1_0, has already been imported: 2,170,299 samples. On a new installation the dashboard shows the empty state until a load is completed; the 146 M declared are never shown as a local count.
 
 ```bash
 python3 dashboard.py
 ```
 
-Abrir [OTTO](http://127.0.0.1:8000/), [REES46](http://127.0.0.1:8000/rees46.html) y [escala](http://127.0.0.1:8000/scale.html). En otro terminal:
+Open [OTTO](http://127.0.0.1:8000/), [REES46](http://127.0.0.1:8000/rees46.html) and [scale](http://127.0.0.1:8000/scale.html). In another terminal:
 
 ```bash
 python3 scripts/otto.py replay --rate 5000 --limit 200000 --reset
 python3 scripts/crud_demo.py
 ```
 
-`--rate` es una meta; la velocidad efectiva depende del equipo. `--reset` en el reproductor vacía **solo** `otto_replay`. Los botones de OTTO insertan clics nuevos en `live_clicks`.
-El CRUD pausa temporalmente las fusiones de las tablas grandes y las reanuda al salir. Si se termina ese proceso a la fuerza, ejecutar `SYSTEM START MERGES` para `otto_archive`, `rees46_events` y `otto_scale_benchmark` desde el cliente SQL.
+`--rate` is a target; the effective speed depends on the machine. `--reset` in the replayer empties **only** `otto_replay`. The OTTO buttons insert new clicks into `live_clicks`.
+The CRUD script temporarily pauses merges on the large tables and resumes them on exit. If that process is killed, run `SYSTEM START MERGES` for `otto_archive`, `rees46_events` and `otto_scale_benchmark` from the SQL client.
 
-## Comprobaciones SQL
+## SQL checks
 
 ```bash
 docker exec -it bd2-clickhouse clickhouse-client --user demo --password demo --database delivery
@@ -80,7 +80,7 @@ docker exec -it bd2-clickhouse clickhouse-client --user demo --password demo --d
 ```sql
 SELECT event_type, count() FROM otto_archive GROUP BY event_type ORDER BY event_type;
 SELECT sum(events), count() FROM otto_daily_rollup;
-SELECT toYYYYMM(event_date) AS mes, count() FROM rees46_events GROUP BY mes ORDER BY mes;
+SELECT toYYYYMM(event_date) AS month, count() FROM rees46_events GROUP BY month ORDER BY month;
 SELECT scenario, count() FROM otto_scale_benchmark GROUP BY scenario ORDER BY scenario;
 SELECT table, sum(rows), formatReadableSize(sum(bytes_on_disk))
 FROM system.parts WHERE database = 'delivery' AND active
@@ -88,11 +88,11 @@ FROM system.parts WHERE database = 'delivery' AND active
 GROUP BY table ORDER BY table;
 ```
 
-## Problemas frecuentes
+## Common problems
 
-- **El dashboard no conecta:** comprobar `docker compose -f compose.yaml ps`, el puerto 8124 y el proceso `python3 dashboard.py`. Si el puerto 8000 está ocupado: `PORT=8001 python3 dashboard.py`.
-- **Falta espacio:** ejecutar solo OTTO y el rollup; ya permiten demostrar 216,7 millones de eventos reales. No borrar datos necesarios antes de la presentación.
-- **Carga REES46 interrumpida:** `python3 scripts/rees46.py status` indica los meses terminados. Probar `python3 scripts/rees46.py load --resume-partial`; si la salida indica que el lote incompleto no se puede reanudar, usar `--replace-partial` para reconstruir únicamente ese mes. `load --reset` borra y reconstruye toda la tabla.
-- **Escenario de escala interrumpido:** `python3 scripts/scale.py --replace-partial` elimina y rehace solo el escenario incompleto. Si una mutación no puede concluir por falta de memoria, `python3 scripts/scale.py --reset` reconstruye la tabla de prueba completa.
-- **Proceso terminado a la fuerza:** si se paró un cargador sin ejecutar su limpieza final, reactivar las fusiones con `SYSTEM START MERGES delivery.rees46_events` y `SYSTEM START MERGES delivery.otto_scale_benchmark` desde el cliente SQL cuando hayan acabado las cargas.
-- **Benchmark sin datos:** requiere OTTO completo, al menos un mes REES46 y la tabla de escala. La carga completa de siete meses ofrece la presentación final.
+- **The dashboard does not connect:** check `docker compose -f compose.yaml ps`, port 8124 and the `python3 dashboard.py` process. If port 8000 is taken: `PORT=8001 python3 dashboard.py`.
+- **Not enough space:** run only OTTO and the rollup; they already make it possible to demonstrate 216.7 million real events. Do not delete data needed before the presentation.
+- **Interrupted REES46 load:** `python3 scripts/rees46.py status` shows the finished months. Try `python3 scripts/rees46.py load --resume-partial`; if the output says the incomplete batch cannot be resumed, use `--replace-partial` to rebuild only that month. `load --reset` deletes and rebuilds the whole table.
+- **Interrupted scale scenario:** `python3 scripts/scale.py --replace-partial` deletes and redoes only the incomplete scenario. If a mutation cannot finish because of lack of memory, `python3 scripts/scale.py --reset` rebuilds the complete test table.
+- **Process killed:** if a loader was stopped without running its final cleanup, re-enable merges with `SYSTEM START MERGES delivery.rees46_events` and `SYSTEM START MERGES delivery.otto_scale_benchmark` from the SQL client once the loads have finished.
+- **Benchmark without data:** it requires the full OTTO dataset, at least one REES46 month and the scale table. The full seven-month load provides the final presentation.

@@ -1,8 +1,8 @@
-# Demo de seguimiento: ruta principal
+# Tracking demo: main path
 
-La implementación la continúa Rayo con Jere. No requiere descargar históricos públicos en el ordenador de otro compañero.
+The implementation is being continued by Rayo with Jere. It does not require downloading public historical data on a teammate's computer.
 
-## Preparar
+## Prepare
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
@@ -10,36 +10,36 @@ python3 -m unittest discover -s tests -v
 python3 scripts/check_operations.py
 ```
 
-Abrir http://127.0.0.1:8001/. Comprobar los dos servicios healthy y que el panel no muestra errores. En un ordenador nuevo el catálogo Glovo público puede estar vacío; habrá doce restaurantes y treinta y seis productos de demo. El histórico masivo se puede enseñar desde el ordenador de Jere y los informes guardados.
+Open http://127.0.0.1:8001/. Check that both services are healthy and that the dashboard shows no errors. On a new computer the public Glovo catalog may be empty; there will be twelve demo restaurants and thirty-six demo products. The massive history can be shown from Jere's computer and the saved reports.
 
-## Recorrido de clase
+## Classroom walkthrough
 
-1. **Explicar la etiqueta:** Madrid y flota ficticia. GPS y estados son eventos nuevos del simulador, no un servicio conectado a Uber Eats.
-2. **Iniciar 12 repartidores.** Seleccionar uno en la lista. Mostrar ID de pedido, latitud/longitud y hora del evento; esperar a que cambien en una actualización.
-3. **Consultar SQL** con `sql/atlas_tracking_consultas.sql`. Mostrar `courier_positions` y `courier_latest_mv`: una conserva histórico, la otra calcula estado reciente.
-4. **Mostrar un cambio de estado.** Created, preparing, picked_up, en_route, delivered o cancelled. Los ciclos están escalonados; habrá pedidos en fases distintas. No prometer un estado concreto en una fecha de reloj exacta.
-5. **Registrar búsqueda manual.** Pulsar el botón y cambiar Procedencia a Acciones manuales. 202 confirma la cola; el recuento aparece tras publicación y consulta. El agregado de navegación refresca cada diez segundos.
-6. **Parar.** Los puntos quedan visibles y envejecen. El histórico no se borra. Iniciar otra vez crea otro run y otra flota.
-7. **Mostrar integridad.** Leer `docs/evidencia-tracking.json`: reintento reconocido; dato antiguo no reemplaza uno nuevo; fallo entre INSERTs se recupera. El test es una comprobación realizada, no algo que esté fallando en el momento.
-8. **Reflexión:** observar antigüedad y cola. Consultar más a menudo no elimina un atraso de publicación. No hay transacción entre tablas ni réplica del nodo.
+1. **Explain the label:** Madrid and a fictional fleet. GPS and statuses are new events from the simulator, not a service connected to Uber Eats.
+2. **Start with 12 couriers.** Select one in the list. Show the order ID, latitude/longitude and event time; wait for them to change on a refresh.
+3. **Query SQL** with `sql/atlas_tracking_consultas.sql`. Show `courier_positions` and `courier_latest_mv`: one keeps the history, the other computes the latest state.
+4. **Show a status change.** Created, preparing, picked_up, en_route, delivered or cancelled. The cycles are staggered; there will be orders in different phases. Do not promise a specific status at an exact clock time.
+5. **Record a manual search.** Click the button and switch "Source" to "Manual actions". 202 confirms the queue; the count appears after publishing and querying. The browsing aggregate refreshes every ten seconds.
+6. **Stop.** The points stay visible and age. The history is not deleted. Starting again creates another run and another fleet.
+7. **Show integrity.** Read `docs/evidencia-tracking.json`: retry recognized; old data does not replace newer data; a failure between INSERTs is recovered. The test is a check that was carried out, not something failing right now.
+8. **Reflection:** look at data age and the queue. Querying more often does not remove a publishing delay. There is no transaction across tables and no replica of the node.
 
-## Operaciones SQL del enunciado
+## SQL operations required by the brief
 
-El script `python3 scripts/crud_demo.py` ya demuestra inserción, consulta, actualización y borrado en `delivery.demo_events`. Coordinar su ejecución con la generación, y explicar por qué no se modifica un histórico Atlas cuyos agregados incrementales no recalculan automáticamente borrados. Para una demo tranquila, parar la simulación antes del CRUD y reanudarla después.
+The `python3 scripts/crud_demo.py` script already demonstrates insert, query, update and delete on `delivery.demo_events`. Coordinate running it with the generation, and explain why an Atlas history is not modified: its incremental aggregates do not automatically recompute deletions. For a calm demo, stop the simulation before the CRUD and resume it afterwards.
 
-## Carga y evidencia
+## Load and evidence
 
-- Un millón de eventos de navegación del primer generador: `docs/RESULTADOS-ATLAS.md`.
-- 100000 posiciones históricas sintéticas y 5965 estados, verificados: `docs/evidencia-carga-gps.json`.
-- Nueve pruebas unitarias y prueba HTTP/SQL de telemetría. El test HTTP usa su propio run; no cambia el run que ve el panel.
-- El ritmo configurado es dos segundos, sujeto al coste de recepción/publicación. El panel muestra antigüedad y errores; los datos pueden atrasarse bajo carga. No se ha fijado un SLA.
+- One million browsing events from the first generator: `docs/RESULTADOS-ATLAS.md`.
+- 100000 synthetic historical positions and 5965 statuses, verified: `docs/evidencia-carga-gps.json`.
+- Nine unit tests and an HTTP/SQL telemetry test. The HTTP test uses its own run; it does not change the run the dashboard shows.
+- The configured pace is two seconds, subject to the cost of receiving/publishing. The dashboard shows data age and errors; data can fall behind under load. No SLA has been set.
 
-## Si algo falla
+## If something fails
 
-- API no responde: `docker compose -f compose.yaml --profile atlas ps`, luego `docker compose -f compose.yaml --profile atlas logs --tail 40 atlas`.
-- Cola aumenta: leer `/api/status`, incluyendo `publisher_phase`, `publisher_phase_seconds`, `last_batch` y `last_publish_seconds`. Diferenciar lectura de cola, INSERT y confirmación en cola.
-- Simulación parada por error: el mensaje se muestra en el panel. Resolverlo antes de iniciar otro run; no ocultar el error ni borrarlo con `down -v`.
-- Catálogo no cargado: la flota funciona con su catálogo ficticio. No inventar que se cargó Glovo.
-- Reiniciar la API conserva la cola y la última ejecución, pero la generación no se reactiva automáticamente.
+- API does not respond: `docker compose -f compose.yaml --profile atlas ps`, then `docker compose -f compose.yaml --profile atlas logs --tail 40 atlas`.
+- Queue grows: read `/api/status`, including `publisher_phase`, `publisher_phase_seconds`, `last_batch` and `last_publish_seconds`. Distinguish queue reading, INSERT and queue confirmation.
+- Simulation stopped by an error: the message is shown on the dashboard. Fix it before starting another run; do not hide the error or wipe it with `down -v`.
+- Catalog not loaded: the fleet works with its fictional catalog. Do not claim that Glovo was loaded.
+- Restarting the API keeps the queue and the last run, but generation is not reactivated automatically.
 
-La cola del servicio usa una conexión SQLite persistente protegida por un lock entre hilos, mantiene `synchronous=FULL` y limita la caché a 32 MiB. Esto evita abrir/cerrar el registro en cada tick y conserva las transacciones. No se comparten escrituras entre varias APIs. Véase la explicación de [WAL y checkpoints](https://sqlite.org/wal.html).
+The service queue uses a persistent SQLite connection protected by a lock between threads, keeps `synchronous=FULL` and limits the cache to 32 MiB. This avoids opening/closing the log on every tick and keeps the transactions. Writes are not shared between several APIs. See the explanation of [WAL and checkpoints](https://sqlite.org/wal.html).

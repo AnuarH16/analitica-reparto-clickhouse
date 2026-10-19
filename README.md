@@ -1,26 +1,28 @@
-# Delivery Atlas — infraestructura analítica de una plataforma de reparto
+# Delivery Atlas — analytics infrastructure for a delivery platform
 
-Proyecto BD2 para diseñar la infraestructura analítica de una plataforma ficticia de comida a domicilio. El objetivo es recibir eventos de navegación masivos, conservar su procedencia y alimentar un dashboard con ClickHouse. La implementación actual, llamada Clickstream Lab en el panel OTTO, aporta el laboratorio de datos y rendimiento sobre el que desarrollamos ese caso.
+BD2 project to design the analytics infrastructure of a fictional food-delivery platform. The goal is to receive massive browsing events, keep their provenance and feed a dashboard with ClickHouse. The current implementation, called Clickstream Lab in the OTTO dashboard, provides the data and performance lab on which we build that case.
 
-**Tráfico concurrente:** modo mixto con **200 clientes (3 IA + 197 simulados) y 80 repartidores**, hasta 500/150 desde los controles. Clientes por lotes, pausas variadas, compras enlazadas y resumen de actividad; [guía](docs/AGENTES-CLIENTES.md), prueba `python3 scripts/check_traffic.py` sobre el escenario activo.
+**Project brief and checklist:** [docs/ENUNCIADO.md](docs/ENUNCIADO.md) summarizes what the assignment asks for and where each requirement is covered.
 
-**Miniapp comercial (14/10):** http://127.0.0.1:8001/delivery.html. Una persona busca, filtra, abre un restaurante, llena el carrito y confirma. Cada acción va a `POST /api/events` (`demo_live`) y el checkout (`POST /api/checkout`) crea un pedido real de la simulación, que se reparte y se sigue por GPS. Requiere iniciar «Clientes y reparto» en el panel. [Guía, eventos y verificación](docs/MINIAPP.md).
+**Concurrent traffic:** mixed mode with **200 customers (3 AI + 197 simulated) and 80 couriers**, up to 500/150 from the controls. Customers in batches, varied pauses, linked purchases and an activity summary; [guide](docs/AGENTES-CLIENTES.md), test with `python3 scripts/check_traffic.py` on the active scenario.
 
-**Clientes con IA conectados al reparto (14/10):** [arranque, esquema y verificación](docs/AGENTES-CLIENTES.md). Qwen3 local decide acciones; el checkout crea el mismo pedido que se asigna y sigue en el mapa. Compras y posiciones ficticias, sin cobro. Activar los perfiles `atlas` y `ai`, descargar el modelo como indica la guía y abrir http://127.0.0.1:8001/.
+**Commercial mini-app (14 Oct):** http://127.0.0.1:8001/delivery.html. A person searches, filters, opens a restaurant, fills the cart and checks out. Every action goes to `POST /api/events` (`demo_live`) and checkout (`POST /api/checkout`) creates a real order in the simulation, which is delivered and tracked by GPS. It requires starting "Customers and delivery" on the dashboard. [Guide, events and verification](docs/MINIAPP.md).
 
-**Guía técnica para el equipo (14/10):** [PDF completo](output/pdf/Delivery-Atlas-Documento-Tecnico-Equipo.pdf) y [versión editable](docs/DOCUMENTO-TECNICO-EQUIPO.md). Explica tecnologías, arquitectura, contratos y columnas, ingesta, simulación, consultas, compartición y límites de las pruebas. Revisa el código actual; las mediciones incluidas corresponden al 7/10.
+**AI customers connected to delivery (14 Oct):** [start, schema and verification](docs/AGENTES-CLIENTES.md). A local Qwen3 model decides actions; checkout creates the same order that gets assigned and tracked on the map. Fictional purchases and positions, no payment. Enable the `atlas` and `ai` profiles, download the model as the guide explains and open http://127.0.0.1:8001/.
 
-**Para entenderlo rápido:** [guía visual de 4 páginas](output/pdf/Delivery-Atlas-Guia-Visual-Equipo.pdf), con esquema de conexiones, tipos de registros y primeros pasos para Anuar y Echenique. [Resumen editable](docs/GUIA-VISUAL-EQUIPO.md).
+**Technical guide for the team (14 Oct):** [full PDF](output/pdf/Delivery-Atlas-Documento-Tecnico-Equipo.pdf) and [editable version](docs/DOCUMENTO-TECNICO-EQUIPO.md). It explains technologies, architecture, contracts and columns, ingestion, simulation, queries, sharing and the limits of the tests. It reviews the current code; the measurements included are from 7 Oct.
 
-**Actualización del 7 de octubre:** la plataforma ficticia ya tiene contrato validado, cola duradera, publicación por lotes, SQL aplicado en `delivery_atlas`, generador reproducible y dashboard de operación. La miniapp comercial es la siguiente entrega. [Plan para Jere, Anuar y Echenique](docs/PLAN-EQUIPO.md) y [guía completa de infraestructura](docs/INFRAESTRUCTURA-ATLAS.md).
+**To understand it quickly:** [4-page visual guide](output/pdf/Delivery-Atlas-Guia-Visual-Equipo.pdf), with a connection diagram, record types and first steps for Anuar and Echenique. [Editable summary](docs/GUIA-VISUAL-EQUIPO.md).
 
-**Para repartir el trabajo hoy:** [guía del equipo en PDF](output/pdf/Delivery-Atlas-Guia-Equipo.pdf). [Pruebas de la nueva base](docs/RESULTADOS-ATLAS.md): un millón de eventos sintéticos verificados, reintentos y recuperación tras reinicio. El agregado exacto conserva el resultado, pero aún no mejora la velocidad del detalle en esta prueba.
+**Update of 7 October:** the fictional platform already has a validated contract, a durable queue, batch publishing, SQL applied in `delivery_atlas`, a reproducible generator and an operations dashboard. The commercial mini-app is the next delivery. [Plan for Jere, Anuar and Echenique](docs/PLAN-EQUIPO.md) and [full infrastructure guide](docs/INFRAESTRUCTURA-ATLAS.md).
 
-**Ampliación de operación en directo:** [datos conservados, columnas, ingesta y tracking](docs/DATOS-Y-TRACKING.md). Dashboard en **http://127.0.0.1:8001/**, con control de flota simulada de Madrid, posiciones cada dos segundos, pedidos/estados/importe ficticio, navegación y catálogo. Nuevas tablas en `sql/atlas_operations.sql`. Jere y Rayo continúan la implementación; el reparto del PDF anterior queda como propuesta para cuando se incorpore el equipo.
+**To split the work today:** [team guide in PDF](output/pdf/Delivery-Atlas-Guia-Equipo.pdf). [Tests of the new database](docs/RESULTADOS-ATLAS.md): one million verified synthetic events, retries and recovery after a restart. The exact aggregate preserves the result, but it does not yet improve on the speed of the detail table in this test.
 
-[Recorrido de demo y diagnóstico](docs/DEMO-TRACKING.md). Carga adicional comprobada: **100000 posiciones y 5965 estados sintéticos**, además de la navegación previa. El intervalo de dos segundos es una configuración: el panel muestra el retraso observado y no garantiza entrega instantánea.
+**Live operations extension:** [kept data, columns, ingestion and tracking](docs/DATOS-Y-TRACKING.md). Dashboard at **http://127.0.0.1:8001/**, with control of a simulated Madrid fleet, positions every two seconds, orders/statuses/fictional amounts, browsing and catalog. New tables in `sql/atlas_operations.sql`. Jere and Rayo continue the implementation; the split in the earlier PDF remains a proposal for when the team joins.
 
-### Empezar con la nueva plataforma, sin descargar datasets grandes
+[Demo walkthrough and troubleshooting](docs/DEMO-TRACKING.md). Additional verified load: **100000 positions and 5965 synthetic statuses**, on top of the earlier browsing data. The two-second interval is a setting: the dashboard shows the observed delay and does not guarantee instant delivery.
+
+### Getting started with the new platform, without downloading large datasets
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
@@ -30,52 +32,54 @@ python3 scripts/atlas.py generate --events 10000 --batch 1000 --seed 42
 python3 scripts/atlas.py status
 ```
 
-API en `http://127.0.0.1:8001`, SQL en [sql/atlas.sql](sql/atlas.sql), filtros en `/api/summary`. 202 confirma recepción en cola; la publicación en ClickHouse llega después. El laboratorio histórico y sus cifras se describen abajo y conservan su base `delivery`.
+On Windows, use `python` instead of `python3`; see [PRUEBAS-EQUIPO.md](docs/PRUEBAS-EQUIPO.md).
 
-**Estructura de la base de datos:** [mapa del laboratorio y evolución](docs/ESTRUCTURA-BD.md). `sql/propuesta_delivery.sql` conserva el primer diseño; la implementación v1 usa `sql/atlas.sql` con un agregado de IDs únicos para manejar reintentos.
+API at `http://127.0.0.1:8001`, SQL in [sql/atlas.sql](sql/atlas.sql), filters in `/api/summary`. 202 confirms receipt in the queue; publishing to ClickHouse happens afterwards. The historical lab and its figures are described below and keep their `delivery` database.
 
-**Avance de 5 minutos, en inglés:** [presentación simplificada navegable](http://127.0.0.1:8000/avance-bd.html), [PowerPoint editable](presentaciones/Delivery-Atlas-Simple-EN.pptx) y [chuleta bilingüe en PDF](output/pdf/Delivery-Atlas-Cheat-Sheet-Simple-EN-ES.pdf). El recorrido presenta el proyecto, ClickHouse, las fuentes de datos, la propuesta de ingesta y esquema, una prueba de velocidad y los próximos pasos. También hay [notas editables](docs/NOTAS-PRESENTADOR.md). La [revisión frente a los apuntes del profesor](docs/REVISION-TEORIA.md) explica qué encaja y qué falta.
+**Database structure:** [map of the lab and its evolution](docs/ESTRUCTURA-BD.md). `sql/propuesta_delivery.sql` keeps the first design; the v1 implementation uses `sql/atlas.sql` with an aggregate of unique IDs to handle retries.
 
-**Para el equipo:** [estado del proyecto y decisiones pendientes](docs/ESTADO-EQUIPO.md). El laboratorio histórico usa `compose.yaml`, la API Python `dashboard.py` y sus paneles de `web/`; la nueva infraestructura Atlas usa el perfil `atlas` del mismo Compose y `atlas/server.py`. El repositorio conserva también archivos de la implementación anterior con Flask/Grafana; seguir [INSTALACION.md](docs/INSTALACION.md) para elegir la ruta correcta.
+**5-minute progress update, in English:** [simplified navigable presentation](http://127.0.0.1:8000/avance-bd.html), [editable PowerPoint](presentaciones/Delivery-Atlas-Simple-EN.pptx) and [bilingual cheat sheet in PDF](output/pdf/Delivery-Atlas-Cheat-Sheet-Simple-EN-ES.pdf). The walkthrough presents the project, ClickHouse, the data sources, the proposed ingestion and schema, a speed test and the next steps. There are also [editable notes](docs/NOTAS-PRESENTADOR.md). The [review against the professor's notes](docs/REVISION-TEORIA.md) explains what fits and what is missing.
 
-| Fuente | Qué representa | Volumen |
+**For the team:** [project status and pending decisions](docs/ESTADO-EQUIPO.md). The historical lab uses `compose.yaml`, the Python API `dashboard.py` and its dashboards in `web/`; the new Atlas infrastructure uses the `atlas` profile of the same Compose file and `atlas/server.py`. The repository also keeps files from the earlier Flask/Grafana implementation; follow [INSTALACION.md](docs/INSTALACION.md) to pick the right path.
+
+| Source | What it represents | Volume |
 |---|---|---:|
-| [OTTO Recommender Systems Dataset](https://github.com/otto-de/recsys-dataset) | Clics, carritos y pedidos reales anonimizados | **216.716.096 eventos**, incluidos **194.720.954 clics** |
-| [REES46 Marketplace](https://data.rees46.com/) | Vistas, carritos y compras reales de un marketplace | **411.709.736 eventos** en siete archivos mensuales, octubre de 2019 a abril de 2020 |
-| Escenarios de estrés | Cinco variantes de OTTO generadas con SQL para medir consultas; **no son usuarios ni clics nuevos** | **1.083.580.480 filas derivadas** |
-| [Ele.me · Tianchi](https://tianchi.aliyun.com/dataset/131047) | Muestras de recomendación de comida a domicilio en China, con etiqueta binaria de clic | **2.170.299 muestras cargadas**, incluidas **38.914 etiquetas positivas de clic**, de la primera parte D1_0; 146 M declarados para el conjunto completo |
+| [OTTO Recommender Systems Dataset](https://github.com/otto-de/recsys-dataset) | Real anonymized clicks, carts and orders | **216,716,096 events**, including **194,720,954 clicks** |
+| [REES46 Marketplace](https://data.rees46.com/) | Real views, carts and purchases from a marketplace | **411,709,736 events** in seven monthly files, October 2019 to April 2020 |
+| Stress scenarios | Five OTTO variants generated with SQL to measure queries; **not new users or clicks** | **1,083,580,480 derived rows** |
+| [Ele.me · Tianchi](https://tianchi.aliyun.com/dataset/131047) | Food-delivery recommendation samples from China, with a binary click label | **2,170,299 samples loaded**, including **38,914 positive click labels**, from the first part D1_0; 146 M declared for the full dataset |
 
-No son datos de Uber Eats, Glovo ni necesariamente de España. REES46 no identifica el país del marketplace. Una vista de REES46 tampoco equivale a un clic de OTTO. La relación con una app de reparto está en el **tipo de trabajo analítico**: registrar eventos de navegación, mostrarlos por tiempo, categoría y marca y consultar el almacén sin recorrer sus filas una por una.
+This is not data from Uber Eats, Glovo or necessarily from Spain. REES46 does not identify the marketplace's country. A REES46 view is not equivalent to an OTTO click either. The link with a delivery app lies in the **type of analytical work**: recording browsing events, showing them by time, category and brand, and querying the store without scanning its rows one by one.
 
-Las dos fuentes suman **628.425.832 filas de eventos reales**, aunque representan poblaciones y acciones distintas. La tabla derivada de más de mil millones se usa únicamente para probar escala.
+The two sources add up to **628,425,832 rows of real events**, although they represent different populations and actions. The derived table of more than a billion rows is used only to test scale.
 
-## Qué se puede enseñar en directo
+## What can be shown live
 
-- [Dashboard de clics OTTO](http://127.0.0.1:8000/): archivo real, reproducción histórica a ritmo configurable y clics genuinamente nuevos de la página, en tres tablas separadas.
-- [Dashboard del marketplace REES46](http://127.0.0.1:8000/rees46.html): volumen mensual, tipo de acción, categorías, marcas y filtro por mes sobre ClickHouse.
-- [Dashboard de escala](http://127.0.0.1:8000/scale.html): separa eventos reales y filas derivadas, muestra tamaño en disco y las mediciones del benchmark.
-- [Panel Ele.me](http://127.0.0.1:8000/eleme.html): **2.170.299 muestras reales** del recomendador de comida a domicilio, agrupadas por día, hora, ciudad anónima y periodo de comida; [acceso, inspección y carga](docs/ELEME.md). Solo está cargado el primer ZIP oficial D1_0; no son 146 millones de clics.
-- **Archivo frente a agregado:** una vista materializada resume 216.716.096 eventos OTTO en 87 claves de día y tipo, conservando el mismo resultado para esa pregunta. `scripts/benchmark.py` registra tiempo, filas y bytes leídos.
-- **Prueba de mil millones:** `delivery.otto_scale_benchmark` permite consultar 1.083.580.480 filas derivadas en un equipo local, con `scenario` para señalar su origen.
-- **Medición reproducible:** en este equipo, agrupar OTTO por día y tipo tomó 5,89 s desde el archivo frente a 0,21 s desde el agregado (misma respuesta, caché SQL desactivada); agrupar 1.083.580.480 filas por escenario tomó 1,44 s. Las condiciones y los bytes leídos están en [RESULTADOS.md](docs/RESULTADOS.md).
-- Python conectado a ClickHouse para carga, reproducción, consultas, actualización y borrado de una tabla de ensayo.
+- [OTTO clicks dashboard](http://127.0.0.1:8000/): real archive, historical replay at a configurable pace and genuinely new clicks from the page, in three separate tables.
+- [REES46 marketplace dashboard](http://127.0.0.1:8000/rees46.html): monthly volume, action type, categories, brands and a month filter over ClickHouse.
+- [Scale dashboard](http://127.0.0.1:8000/scale.html): separates real events from derived rows, shows size on disk and the benchmark measurements.
+- [Ele.me dashboard](http://127.0.0.1:8000/eleme.html): **2,170,299 real samples** from the food-delivery recommender, grouped by day, hour, anonymous city and meal period; [access, inspection and loading](docs/ELEME.md). Only the first official ZIP D1_0 is loaded; these are not 146 million clicks.
+- **Archive vs aggregate:** a materialized view summarizes 216,716,096 OTTO events into 87 day-and-type keys, keeping the same result for that question. `scripts/benchmark.py` records time, rows and bytes read.
+- **Billion-row test:** `delivery.otto_scale_benchmark` makes it possible to query 1,083,580,480 derived rows on a local machine, with `scenario` to mark their origin.
+- **Reproducible measurement:** on this machine, grouping OTTO by day and type took 5.89 s from the archive vs 0.21 s from the aggregate (same answer, SQL cache disabled); grouping 1,083,580,480 rows by scenario took 1.44 s. Conditions and bytes read are in [RESULTADOS.md](docs/RESULTADOS.md).
+- Python connected to ClickHouse for loading, replay, queries, and update and delete on a scratch table.
 
-## Arquitectura
+## Architecture
 
 ```text
-OTTO ZIP JSONL ── ETL Python ──→ otto_archive (216,7 M reales) ── MV ──→ otto_daily_rollup
+OTTO ZIP JSONL ── Python ETL ──→ otto_archive (216.7 M real) ── MV ──→ otto_daily_rollup
                                        │
-                                       ├─ SQL × 5 → otto_scale_benchmark (1.083.580.480 derivadas)
-                                       └─ replay Python → otto_replay ───────┐
-REES46 CSV.gz × 7 ── ETL Python → rees46_events ─────────────────────────────┤
-Ele.me CSV ZIP → staging → validación completa → eleme_samples ─────────────┤
-Usuario → botones web → API Python → live_clicks ────────────────────────────┤
-                                                     API Python → dashboards ┘
+                                       ├─ SQL × 5 → otto_scale_benchmark (1,083,580,480 derived)
+                                       └─ Python replay → otto_replay ───────┐
+REES46 CSV.gz × 7 ── Python ETL → rees46_events ─────────────────────────────┤
+Ele.me CSV ZIP → staging → full validation → eleme_samples ─────────────────┤
+User → web buttons → Python API → live_clicks ───────────────────────────────┤
+                                                     Python API → dashboards ┘
 ```
 
-ClickHouse 25.8 corre en un nodo Docker. Los datos se guardan en tablas `MergeTree`; la vista materializada diaria usa `SummingMergeTree`. El navegador consulta una API Python que a su vez consulta ClickHouse. La reproducción inserta eventos históricos **ahora**, con `ingested_at` distinto de la hora real antigua `event_time`; no se presenta como un feed público en vivo.
+ClickHouse 25.8 runs in one Docker node. Data is stored in `MergeTree` tables; the daily materialized view uses `SummingMergeTree`. The browser queries a Python API, which in turn queries ClickHouse. The replay inserts historical events **now**, with an `ingested_at` different from the original `event_time`; it is not presented as a live public feed.
 
-## Puesta en marcha
+## Setup
 
 ```bash
 docker compose -f compose.yaml up -d
@@ -92,17 +96,17 @@ python3 scripts/report.py
 python3 dashboard.py
 ```
 
-Preparad las cargas antes de la clase. Para la demo:
+Prepare the loads before class. For the demo:
 
 ```bash
 python3 scripts/otto.py replay --rate 5000 --limit 200000 --reset
 python3 scripts/crud_demo.py
 ```
 
-La ruta corta ejecuta solo OTTO, rollup y dashboard. La ruta completa necesita espacio y tiempo adicionales; véase [INSTALACION.md](docs/INSTALACION.md). El ZIP OTTO procede de un [espejo público](https://huggingface.co/datasets/hazemessam/otto-recsys) y se verifica por SHA-256 y por los tres recuentos publicados por OTTO. Los siete CSV.gz REES46 se descargan del publicador y se comprueban por tamaño, descompresión y filas cargadas por mes.
+The short path runs only OTTO, the rollup and the dashboard. The full path needs extra space and time; see [INSTALACION.md](docs/INSTALACION.md). The OTTO ZIP comes from a [public mirror](https://huggingface.co/datasets/hazemessam/otto-recsys) and is verified by SHA-256 and by the three counts published by OTTO. The seven REES46 CSV.gz files are downloaded from the publisher and checked by size, decompression and rows loaded per month.
 
-**Material de clase:** [guía de instalación](docs/INSTALACION.md), [demo de 10 minutos](docs/DEMO.md), [guion de 20 minutos](docs/PRESENTACION.md), [fundamentos y límites](docs/FUNDAMENTOS.md), [resultados medidos](docs/RESULTADOS.md) y [diapositivas navegables](http://127.0.0.1:8000/otto-presentacion.html).
+**Class material:** [installation guide](docs/INSTALACION.md), [10-minute demo](docs/DEMO.md), [20-minute script](docs/PRESENTACION.md), [fundamentals and limits](docs/FUNDAMENTOS.md), [measured results](docs/RESULTADOS.md) and [navigable slides](http://127.0.0.1:8000/otto-presentacion.html).
 
-## Compartir el dashboard
+## Sharing the dashboard
 
-**Demo pública de solo lectura:** https://delivery-atlas-demo.vercel.app. La base de datos y el simulador siguen locales: el tracking se actualiza mientras el ordenador de Jere, Docker y el túnel permanezcan activos. Consultar [la guía de compartición](docs/COMPARTIR-VERCEL.md) para arranque, variables privadas, despliegue y parada.
+**Public read-only demo:** https://delivery-atlas-demo.vercel.app. The database and the simulator remain local: tracking updates while Jere's computer, Docker and the tunnel stay up. See [the sharing guide](docs/COMPARTIR-VERCEL.md) for start-up, private variables, deployment and shutdown.

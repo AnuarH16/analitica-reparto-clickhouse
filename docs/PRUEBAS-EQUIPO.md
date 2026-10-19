@@ -1,47 +1,47 @@
-# Pruebas de instalación del equipo
+# Team installation tests
 
-Registro de instalaciones de Delivery Atlas en ordenadores distintos al de desarrollo, como pide [PLAN-EQUIPO.md](PLAN-EQUIPO.md). Cada prueba indica sistema, versiones, comandos y resultados. Quien repita la prueba en otro ordenador puede añadirla al final con el mismo formato.
+Log of Delivery Atlas installations on computers other than the development one, as requested in [PLAN-EQUIPO.md](PLAN-EQUIPO.md). Each test records system, versions, commands and results. Anyone who repeats the test on another computer can add it at the end using the same format.
 
-La ruta probada es la de Atlas sin datasets grandes: [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2.
+The path tested is Atlas without the large datasets: [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 2.
 
-## Anuar: Windows 11, 19/10/2026
+## Anuar: Windows 11, 19 October 2026
 
-| Elemento | Versión |
+| Item | Version |
 |---|---|
-| Sistema | Windows 11 Home 10.0.26300 |
-| Docker | Docker Desktop con Engine 29.8.1 y Compose v5.5.1 |
+| System | Windows 11 Home 10.0.26300 |
+| Docker | Docker Desktop with Engine 29.8.1 and Compose v5.5.1 |
 | Python | 3.12.3 |
 | Git | 2.42.0.windows.2 |
-| Código | Commit `657c044` de la rama del equipo |
+| Code | Commit `657c044` of the team branch |
 
-Arranque desde cero, con volúmenes nuevos y vacíos. Las imágenes base ya estaban descargadas de una prueba anterior. Para no tocar otra instalación de Atlas del mismo ordenador, la prueba usó un proyecto de Compose aparte (`-p atlas-prueba`) con otro nombre de contenedor; los comandos son los mismos.
+Clean start, with new empty volumes. The base images were already downloaded from an earlier test. To avoid touching another Atlas installation on the same computer, the test used a separate Compose project (`-p atlas-prueba`) with a different container name; the commands are the same.
 
-| Paso | Orden | Resultado |
+| Step | Command | Result |
 |---|---|---|
-| Arranque | `docker compose -f compose.yaml --profile atlas up -d --build --wait` | ClickHouse y la API, `healthy` en 15 s |
-| Tests | `python -m unittest discover -s tests -v` | 20 tests OK en 1,4 s |
-| Integración | `python scripts/check_atlas.py` | 409 al reutilizar un ID con otro contenido y 400 con una acción no válida. La respuesta perdida y reenviada deja 3 filas físicas y 2 eventos lógicos. El detalle y el agregado coinciden |
-| Generador | `python scripts/atlas.py generate --events 10000 --batch 1000 --seed 42` | 10000 eventos aceptados en 1 s |
-| Estado | `python scripts/atlas.py status` y `GET /api/status` | 10002 eventos aceptados y publicados (los 10000 del generador y 2 de la integración), 0 pendientes y 0 errores de publicación |
-| Operaciones | `python scripts/check_operations.py` | Una posición antigua no sustituye a la última y unas coordenadas no válidas dan 400. Tras un fallo inyectado entre INSERT: 4 filas físicas, 2 posiciones lógicas y 2 pedidos lógicos |
-| CRUD | `python scripts/crud_demo.py` | INSERT, SELECT, UPDATE y DELETE sobre `delivery.demo_events` |
-| Interfaces web | http://127.0.0.1:8124/play y http://127.0.0.1:8124/dashboard | Responden 200 |
+| Start | `docker compose -f compose.yaml --profile atlas up -d --build --wait` | ClickHouse and the API `healthy` in 15 s |
+| Tests | `python -m unittest discover -s tests -v` | 20 tests OK in 1.4 s |
+| Integration | `python scripts/check_atlas.py` | 409 when reusing an ID with different content and 400 for an invalid action. The lost and resent response leaves 3 physical rows and 2 logical events. Detail and aggregate match |
+| Generator | `python scripts/atlas.py generate --events 10000 --batch 1000 --seed 42` | 10000 events accepted in 1 s |
+| Status | `python scripts/atlas.py status` and `GET /api/status` | 10002 events accepted and published (10000 from the generator and 2 from the integration check), 0 pending and 0 publishing errors |
+| Operations | `python scripts/check_operations.py` | An old position does not replace the latest one and invalid coordinates return 400. After a failure injected between INSERTs: 4 physical rows, 2 logical positions and 2 logical orders |
+| CRUD | `python scripts/crud_demo.py` | INSERT, SELECT, UPDATE and DELETE on `delivery.demo_events` |
+| Web interfaces | http://127.0.0.1:8124/play and http://127.0.0.1:8124/dashboard | Both return 200 |
 
-**Prueba anterior, 14/10/2026,** en la rama de la miniapp (`codex/atlas-miniapp`, commit `706ca29`): arranque desde cero, `/health` correcto, panel y miniapp respondiendo 200, el `source_kind` de `customer_orders` admite `demo_live`, el checkout sin simulación responde 409 y pasan los 28 tests, incluidos los 8 de la miniapp.
+**Earlier test, 14 October 2026,** on the mini-app branch (`codex/atlas-miniapp`, commit `706ca29`): clean start, `/health` OK, dashboard and mini-app returning 200, `customer_orders.source_kind` accepts `demo_live`, checkout without a simulation returns 409, and all 28 tests pass, including the 8 mini-app tests.
 
-## Problemas en Windows y cómo resolverlos
+## Windows problems and how to solve them
 
-| Problema | Solución |
+| Problem | Solution |
 |---|---|
-| `python3` no existe | Usar `python` (o `py`) en todos los comandos de la documentación |
-| Los acentos salen mal en la consola | Antes de los scripts: `$env:PYTHONUTF8=1` en PowerShell o `export PYTHONUTF8=1` en Git Bash |
-| `docker compose` falla con `dockerDesktopLinuxEngine` | Abrir Docker Desktop y esperar a que el motor esté en marcha |
-| Un script `.sh` falla dentro de un contenedor con `/bin/bash^M: bad interpreter` | Git para Windows con `core.autocrlf=true` convierte los saltos de línea a CRLF. `.gitattributes` fuerza LF en los `.sh`. En un clon anterior a ese cambio, sin cambios locales pendientes: `git rm -r --cached . -q` y después `git reset --hard` |
-| Ya hay un stack anterior del repositorio (`docker-compose.yml`, con Flask y Grafana) | Comparte nombre de proyecto con Atlas. Pararlo antes con `docker compose -f docker-compose.yml down`, que conserva sus volúmenes |
+| `python3` does not exist | Use `python` (or `py`) in every command of the documentation |
+| Accented characters look wrong in the console | Before running the scripts: `$env:PYTHONUTF8=1` in PowerShell or `export PYTHONUTF8=1` in Git Bash |
+| `docker compose` fails with `dockerDesktopLinuxEngine` | Open Docker Desktop and wait until the engine is running |
+| A `.sh` script fails inside a container with `/bin/bash^M: bad interpreter` | Git for Windows with `core.autocrlf=true` converts line endings to CRLF. `.gitattributes` forces LF for `.sh` files. In a clone made before that change, with no pending local changes: `git rm -r --cached . -q` and then `git reset --hard` |
+| An earlier stack from the repository is running (`docker-compose.yml`, with Flask and Grafana) | It shares the Compose project name with Atlas. Stop it first with `docker compose -f docker-compose.yml down`, which keeps its volumes |
 
-**Ojo:** `scripts/check_operations.py` sobrescribe `docs/evidencia-tracking.json` con el resultado de cada ejecución. Si no se quiere subir esa evidencia nueva, restaurarla con `git checkout -- docs/evidencia-tracking.json`.
+**Watch out:** `scripts/check_operations.py` overwrites `docs/evidencia-tracking.json` with the result of each run. If you do not want to commit that new evidence, restore it with `git checkout -- docs/evidencia-tracking.json`.
 
-## Pendiente
+## Pending
 
-- Prueba de Echenique en su ordenador.
-- Prueba en un ordenador sin las imágenes descargadas, para medir el primer arranque completo.
+- Echenique's test on his computer.
+- A test on a computer without the images downloaded, to measure the full first start.

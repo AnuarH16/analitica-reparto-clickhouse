@@ -1,30 +1,30 @@
-# Compartir Delivery Atlas en Vercel
+# Sharing Delivery Atlas on Vercel
 
-**Publicado:** https://delivery-atlas-demo.vercel.app. Verificación: [evidencia del flujo público](evidencia-vercel.json). Las siete rutas respondieron, avanzaron las horas/posiciones simuladas y una escritura devolvió 405. Hubo un 503 inicial; el panel recuperó la conexión mediante sus reintentos. No se garantiza disponibilidad ni demora: la primera comprobación pública observó varios segundos de antigüedad. El acceso compartido separa los bloqueos de consultas por endpoint, para que una carga lenta del inventario no bloquee el seguimiento.
+**Published:** https://delivery-atlas-demo.vercel.app. Verification: [evidence of the public flow](evidencia-vercel.json). The seven routes responded, the simulated times/positions advanced and a write returned 405. There was an initial 503; the dashboard recovered the connection through its retries. Neither availability nor delay is guaranteed: the first public check observed several seconds of data age. Shared access separates query locks per endpoint, so that a slow inventory load does not block tracking.
 
-## Arquitectura de esta demo
+## Architecture of this demo
 
 ```text
-Navegador del compañero -> web y función GET en Vercel
-                       -> HTTPS temporal de Cloudflare
-                       -> gateway de lectura autenticado
-                       -> API Atlas local -> ClickHouse local
+Teammate's browser -> web and GET function on Vercel
+                   -> temporary Cloudflare HTTPS
+                   -> authenticated read gateway
+                   -> local Atlas API -> local ClickHouse
 ```
 
-La generación de eventos, SQLite y ClickHouse permanecen en Docker en el ordenador de Jere. La web compartida representa sus consultas; no reproduce posiciones inventadas por separado. Si el ordenador se duerme, Docker se detiene o el túnel se cierra, la web permanece publicada pero los datos dejan de actualizarse y se muestra un aviso.
+Event generation, SQLite and ClickHouse remain in Docker on Jere's computer. The shared website displays its queries; it does not reproduce separately invented positions. If the computer goes to sleep, Docker stops or the tunnel closes, the website stays published but the data stops updating and a warning is shown.
 
-La web es visible para quien tenga su enlace. Vercel y Cloudflare transportan posiciones y pedidos **ficticios**, recuentos y datos del catálogo público. No se publican los archivos masivos ni los recursos del profesor. El token del gateway solo existe en un archivo local ignorado y en una variable de entorno sensible de la función; nunca se incluye en el JavaScript del navegador.
+The website is visible to anyone who has its link. Vercel and Cloudflare carry **fictional** positions and orders, counts and public catalog data. The massive files and the professor's resources are not published. The gateway token only exists in an ignored local file and in a sensitive environment variable of the function; it is never included in the browser JavaScript.
 
-## Qué puede leer
+## What it can read
 
-`simulation`, `operations`, `status`, `track`, `summary` (Madrid), `inventory` y `catalog`. El gateway valida rutas y parámetros, rechaza POST/PUT/PATCH/DELETE y requiere un token. `status` y `simulation` se reducen a campos necesarios del panel. La función de Vercel también rechaza escrituras. El panel compartido no tiene controles de simulación ni botón de inserción. El acceso al SQL de ClickHouse continúa local.
+`simulation`, `operations`, `status`, `track`, `summary` (Madrid), `inventory` and `catalog`. The gateway validates routes and parameters, rejects POST/PUT/PATCH/DELETE and requires a token. `status` and `simulation` are reduced to the fields the dashboard needs. The Vercel function also rejects writes. The shared dashboard has no simulation controls and no insert button. Access to ClickHouse's SQL stays local.
 
-Hay una caché en el gateway: 1,5 s para seguimiento/estado, 10 s para navegación y 60 s para catálogo/inventario, con un máximo de 128 claves. Agrupa consultas de varios espectadores; añade demora respecto al panel local. El intervalo visual sigue sin ser una garantía de latencia.
+There is a cache in the gateway: 1.5 s for tracking/status, 10 s for browsing and 60 s for catalog/inventory, with a maximum of 128 keys. It groups queries from several viewers; it adds delay compared with the local dashboard. The visual interval is still not a latency guarantee.
 
-## Preparar y arrancar
+## Prepare and start
 
-1. Arrancar Atlas siguiendo [DEMO-TRACKING.md](DEMO-TRACKING.md). Iniciar la flota desde http://127.0.0.1:8001/.
-2. Crear un token y los archivos locales sin imprimirlo:
+1. Start Atlas by following [DEMO-TRACKING.md](DEMO-TRACKING.md). Start the fleet from http://127.0.0.1:8001/.
+2. Create a token and the local files without printing it:
 
 ```bash
 python3 - <<'PY'
@@ -42,8 +42,8 @@ docker compose -f compose.yaml -f compose.share.yaml --profile atlas up -d --bui
 docker compose -f compose.yaml -f compose.share.yaml logs share-tunnel
 ```
 
-3. Copiar la URL `https://….trycloudflare.com` del registro a `data/sharing/origin` (no es una contraseña). [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) genera una URL temporal que cambia al crear otro túnel; no tiene garantía de disponibilidad. No requiere cuenta de Cloudflare.
-4. Con Vercel CLI autenticado, enlazar **el proyecto de la demo** y configurar sus variables de producción:
+3. Copy the `https://….trycloudflare.com` URL from the log to `data/sharing/origin` (it is not a password). [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) generates a temporary URL that changes when another tunnel is created; it has no availability guarantee. It does not require a Cloudflare account.
+4. With an authenticated Vercel CLI, link **the demo project** and set its production variables:
 
 ```bash
 vercel link --project delivery-atlas-demo --scope contrerasgeremi-gmailcoms-projects --yes
@@ -52,14 +52,14 @@ vercel env add ATLAS_SHARE_ORIGIN production --yes < data/sharing/origin
 vercel deploy --prod --scope contrerasgeremi-gmailcoms-projects --yes
 ```
 
-Usar `--force` en `env add` al sustituir una variable ya configurada, y volver a desplegar. No pasar tokens por argumentos ni escribirlos en Git. `scripts/build_shared.mjs` prepara los tres archivos del dashboard; `.vercelignore` limita la subida al frontend, función y configuración.
+Use `--force` with `env add` when replacing a variable that is already set, and deploy again. Do not pass tokens as arguments or write them to Git. `scripts/build_shared.mjs` prepares the three dashboard files; `.vercelignore` limits the upload to the frontend, function and configuration.
 
-Vercel aloja la web y una función por petición. El proceso permanente y el almacenamiento del laboratorio quedan fuera de las [funciones de duración limitada](https://vercel.com/docs/functions/limitations).
+Vercel hosts the website and one function per request. The permanent process and the lab's storage stay outside the [time-limited functions](https://vercel.com/docs/functions/limitations).
 
-## Parar la compartición
+## Stop sharing
 
 ```bash
 docker compose -f compose.yaml -f compose.share.yaml stop share-tunnel share-gateway
 ```
 
-Esto no borra datos ni detiene ClickHouse o la demo local. Para abrir otra sesión, comprobar la URL actual del túnel, actualizar `ATLAS_SHARE_ORIGIN` si cambia y desplegar de nuevo. No se ha configurado arranque automático del túnel ni del simulador al reiniciar el ordenador.
+This does not delete data or stop ClickHouse or the local demo. To open another session, check the current tunnel URL, update `ATLAS_SHARE_ORIGIN` if it changed and deploy again. Automatic start of the tunnel or the simulator after restarting the computer has not been configured.

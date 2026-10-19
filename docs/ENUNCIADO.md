@@ -1,107 +1,106 @@
-# Enunciado del proyecto y checklist de la entrega
+# Project brief and delivery checklist
 
-Fecha: 19/10/2026. Resume con nuestras palabras lo que pide el enunciado del proyecto final de BD2. Para cada requisito indica dónde está en el repositorio y su estado. El texto original es del profesor y no se copia aquí porque el repositorio es público.
+Date: 19 October 2026. This document summarizes, in our own words, what the BD2 final project brief asks for. For each requirement it shows where it is covered in the repository and its status. The original text belongs to the professor and is not copied here because the repository is public.
 
-**Estados:** **Hecho** (cubierto y documentado), **Parcial** (existe, pero hay que completarlo o actualizarlo), **Falta** y **Opcional**.
+**Statuses:** **Done** (covered and documented), **Partial** (exists, but needs completing or updating), **Missing** and **Optional**.
 
-## Qué pide el enunciado
+## What the brief asks for
 
-Cada grupo investiga a fondo una base de datos NoSQL, explica sus fundamentos y enseña un caso práctico en el que se vean sus ventajas.
+Each group researches a NoSQL database in depth, explains its fundamentals and shows a practical use case that highlights its advantages.
 
-- **Fecha de la presentación:** 15/11/2026.
-- **Formato:** 30 minutos por grupo. Son 20 de presentación técnica, con la demo en directo dentro, y unos 10 de preguntas.
-- **Entregables:**
-  1. La presentación con la demo.
-  2. Documentos `.md` con la documentación, la instalación paso a paso y una guía para ejecutar la demo. Deben bastar para que otro estudiante reproduzca la demo y entienda los fundamentos.
-  3. Los ficheros adicionales necesarios: código, imágenes, `yml`, etc.
-- **Contenido mínimo:** contexto y motivación, características principales, arquitectura y funcionamiento, demo en directo y reflexión crítica. Los subpuntos del enunciado son sugerencias; se valora ampliarlos.
-- **Ideas de demo que propone:** una miniapp que use la base como backend, un flujo de datos típico, un escenario en tiempo real o una visualización con filtros y paneles. Delivery Atlas combina las cuatro.
+- **Presentation date:** 15 November 2026.
+- **Format:** 30 minutes per group: 20 minutes of technical presentation, with the live demo included, and about 10 minutes of questions.
+- **Deliverables:**
+  1. The presentation with the demo.
+  2. `.md` documents with the documentation, step-by-step installation and a guide to run the demo. They must be enough for another student to reproduce the demo and understand the fundamentals.
+  3. Any additional files needed: code, images, `yml`, etc.
+- **Minimum content:** context and motivation, main characteristics, architecture and operation, live demo and critical reflection. The brief's sub-points are suggestions; going further is valued.
+- **Demo ideas it suggests:** a mini-app using the database as backend, a typical data flow, a real-time scenario or a visualization with filters and dashboards. Delivery Atlas combines all four.
 
-## Decisiones confirmadas con el profesor
+## Decisions confirmed with the professor
 
-| Tema | Decisión |
+| Topic | Decision |
 |---|---|
-| Tecnología | **ClickHouse**, indicada por el profesor. Queda resuelta la duda sobre la sección «Personas» que recogen [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) y [REVISION-TEORIA.md](REVISION-TEORIA.md). En la presentación conviene explicar igualmente el matiz: es un almacén columnar OLAP que usa SQL ([FUNDAMENTOS.md](FUNDAMENTOS.md)). |
-| Duración | 20 minutos de presentación **con la demo dentro** y unos 10 de preguntas. |
-| Varios nodos | **Opcional.** No se monta un clúster; se explica cómo replica y reparte datos ClickHouse. |
-| Caso de uso | Plataforma ficticia de comida a domicilio con su infraestructura analítica ([ESTADO-EQUIPO.md](ESTADO-EQUIPO.md)). |
+| Technology | **ClickHouse**, assigned by the professor. This resolves the question about the "Personas" section raised in [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) and [REVISION-TEORIA.md](REVISION-TEORIA.md). The presentation should still explain the nuance: it is a columnar OLAP store that uses SQL ([FUNDAMENTOS.md](FUNDAMENTOS.md)). |
+| Duration | 20 minutes of presentation **including the demo** and about 10 minutes of questions. |
+| Multiple nodes | **Optional.** No cluster is set up; we explain how ClickHouse replicates and distributes data. |
+| Use case | Fictional food-delivery platform with its analytics infrastructure ([ESTADO-EQUIPO.md](ESTADO-EQUIPO.md)). |
 
-## Checklist por apartado
+## Checklist by section
 
-### 1. Contexto y motivación
+### 1. Context and motivation
 
-| Requisito | Dónde | Estado |
+| Requirement | Where | Status |
 |---|---|---|
-| Tipo de base de datos | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Encaje en BD2»; [PRESENTACION.md](PRESENTACION.md), «¿Es NoSQL?» | Hecho |
-| Qué problemas resuelve mejor que otras bases | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Experimento que justifica ClickHouse» y «Comparación con una base transaccional» | Hecho |
-| Escenarios en los que se usa habitualmente | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Dónde se usa ClickHouse»: familias de uso de la documentación oficial y empresas de la lista oficial de usuarios, incluidas algunas de reparto | Hecho |
+| Type of database | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Fit with the BD2 course"; [PRESENTACION.md](PRESENTACION.md), "Is it NoSQL?" | Done |
+| Problems it solves better than other databases | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Experiment that justifies ClickHouse" and "Comparison with a transactional database" | Done |
+| Scenarios where it is commonly used | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Where ClickHouse is used": use-case families from the official documentation and companies from the official list of adopters, including some delivery companies | Done |
 
-### 2. Características principales
+### 2. Main characteristics
 
-| Requisito | Dónde | Estado |
+| Requirement | Where | Status |
 |---|---|---|
-| Modelo de datos y representación | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Modelo de datos»; [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md); [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 3 | Hecho |
-| Consistencia, escalabilidad y disponibilidad | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Consistencia y disponibilidad»; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), CAP, PACELC, idempotencia y tolerancia a fallos en Atlas | Hecho |
-| Replicación, particionado y tolerancia a fallos | [FUNDAMENTOS.md](FUNDAMENTOS.md); [REVISION-TEORIA.md](REVISION-TEORIA.md), «P4»; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md), «Integridad y recuperación» | Hecho (explicado; montar varios nodos es opcional) |
+| Data model and representation | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Data model"; [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md); [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 3 | Done |
+| Consistency, scalability and availability | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Consistency and availability"; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), CAP, PACELC, idempotency and fault tolerance in Atlas | Done |
+| Replication, partitioning and fault tolerance | [FUNDAMENTOS.md](FUNDAMENTOS.md); [REVISION-TEORIA.md](REVISION-TEORIA.md), "P4"; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md), "Integrity and recovery" | Done (explained; running several nodes is optional) |
 
-### 3. Arquitectura y funcionamiento
+### 3. Architecture and operation
 
-| Requisito | Dónde | Estado |
+| Requirement | Where | Status |
 |---|---|---|
-| Instalar, desplegar o acceder | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, para Atlas sin descargas grandes; [INSTALACION.md](INSTALACION.md) para el laboratorio con los datasets grandes | Hecho. Arranque desde cero comprobado en Windows 11 ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
-| Comandos y consultas principales | `sql/atlas_consultas.sql`, `sql/atlas_tracking_consultas.sql`, [DEMO.md](DEMO.md), [DEMO-TRACKING.md](DEMO-TRACKING.md) | Hecho |
-| Herramientas y librerías cliente | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Interfaces, clientes y herramientas»: interfaces y puertos, consola, `/play` y `/dashboard`, librerías oficiales, Grafana y por qué Atlas usa HTTP | Hecho |
+| Install, deploy or access | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 2, for Atlas without large downloads; [INSTALACION.md](INSTALACION.md) for the lab with the large datasets | Done. Clean start verified on Windows 11 ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
+| Main commands and queries | `sql/atlas_consultas.sql`, `sql/atlas_tracking_consultas.sql`, [DEMO.md](DEMO.md), [DEMO-TRACKING.md](DEMO-TRACKING.md) | Done |
+| Tools and client libraries | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Interfaces, clients and tools": interfaces and ports, console, `/play` and `/dashboard`, official libraries, Grafana and why Atlas uses HTTP | Done |
 
-### 4. Demo en directo
+### 4. Live demo
 
-| Requisito | Dónde | Estado |
+| Requirement | Where | Status |
 |---|---|---|
-| Datasets reales o semirreales | OTTO, REES46, Ele.me y Glovo: [README](../README.md) y [RESULTADOS.md](RESULTADOS.md). En Atlas, tráfico simulado (`synthetic`) y acciones manuales (`demo_live`); sin el catálogo de Glovo se usa uno de demo | Hecho. Los datasets grandes solo están cargados en el ordenador de Jere; la parte que los use debe hacerse desde ahí |
-| Insertar, consultar, actualizar y borrar | `scripts/crud_demo.py` sobre la tabla de ensayo `delivery.demo_events`. [DEMO-TRACKING.md](DEMO-TRACKING.md) explica por qué no se modifica el histórico | Parcial: el script funciona (comprobado en Windows el 19/10), pero falta encajarlo en el guion de la demo de Atlas ([INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 7) |
-| Conexión desde un lenguaje de programación | API y publicador en Python (`atlas/`); scripts de carga y consulta (`scripts/`) | Hecho |
-| Caso de uso sencillo y representativo | Delivery Atlas: panel en `http://127.0.0.1:8001/`, seguimiento GPS, clientes simulados y con IA ([AGENTES-CLIENTES.md](AGENTES-CLIENTES.md)) y miniapp comercial (`docs/MINIAPP.md`, en el PR de Anuar) | Hecho; la miniapp está pendiente de merge |
-| Varios nodos | [FUNDAMENTOS.md](FUNDAMENTOS.md) explica `ReplicatedMergeTree`, ClickHouse Keeper y tablas `Distributed` | Opcional (explicado, no montado) |
+| Real or semi-real datasets | OTTO, REES46, Ele.me and Glovo: [README](../README.md) and [RESULTADOS.md](RESULTADOS.md). In Atlas, simulated traffic (`synthetic`) and manual actions (`demo_live`); without the Glovo catalog a demo catalog is used | Done. The large datasets are only loaded on Jere's computer; the part that uses them must be run from there |
+| Insert, query, update and delete | `scripts/crud_demo.py` on the scratch table `delivery.demo_events`. [DEMO-TRACKING.md](DEMO-TRACKING.md) explains why the history is not modified | Partial: the script works (verified on Windows on 19 October), but it still needs to be fitted into the Atlas demo script ([INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 7) |
+| Connection from a programming language | Python API and publisher (`atlas/`); loading and query scripts (`scripts/`) | Done |
+| Simple but representative use case | Delivery Atlas: dashboard at `http://127.0.0.1:8001/`, GPS tracking, simulated and AI customers ([AGENTES-CLIENTES.md](AGENTES-CLIENTES.md)) and the commercial mini-app ([MINIAPP.md](MINIAPP.md)) | Done |
+| Multiple nodes | [FUNDAMENTOS.md](FUNDAMENTOS.md) explains `ReplicatedMergeTree`, ClickHouse Keeper and `Distributed` tables | Optional (explained, not set up) |
 
-### 5. Reflexión crítica
+### 5. Critical reflection
 
-| Requisito | Dónde | Estado |
+| Requirement | Where | Status |
 |---|---|---|
-| Fortalezas y limitaciones observadas | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Calidad del dato y límites»; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), «Ventajas y desventajas de ClickHouse aquí»; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md), donde el agregado no fue más rápido | Hecho |
-| Comparación con otros enfoques o bases tradicionales | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Comparación con una base transaccional»; [PRESENTACION.md](PRESENTACION.md), «Argumentos para preguntas» | Hecho, de forma cualitativa. No hay benchmark contra PostgreSQL; el enunciado no lo exige |
-| Proyectos en los que encaja mejor | [FUNDAMENTOS.md](FUNDAMENTOS.md), tabla de comparación | Hecho |
+| Strengths and limitations observed | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Data quality and limits"; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), "Advantages and disadvantages of ClickHouse here"; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md), where the aggregate was not faster | Done |
+| Comparison with other approaches or traditional databases | [FUNDAMENTOS.md](FUNDAMENTOS.md), "Comparison with a transactional database"; [PRESENTACION.md](PRESENTACION.md), "Talking points for questions" | Done, qualitatively. There is no benchmark against PostgreSQL; the brief does not require one |
+| Projects it fits best | [FUNDAMENTOS.md](FUNDAMENTOS.md), comparison table | Done |
 
-## Entregables
+## Deliverables
 
-| Entregable | Dónde | Estado |
+| Deliverable | Where | Status |
 |---|---|---|
-| Presentación de 20 minutos con la demo | [PRESENTACION.md](PRESENTACION.md) es el guion antiguo de Clickstream Lab y reparte 20 minutos de presentación más 10 de demo. [AVANCE-PRESENTACION.md](AVANCE-PRESENTACION.md) es el avance de 5 minutos en inglés. Diapositivas en `presentaciones/` | Falta el guion final de Delivery Atlas en 20 minutos, con la demo dentro |
-| Documentación | [FUNDAMENTOS.md](FUNDAMENTOS.md), [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md), [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), [DOCUMENTO-TECNICO-EQUIPO.md](DOCUMENTO-TECNICO-EQUIPO.md) | Hecho |
-| Instalación paso a paso | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, e [INSTALACION.md](INSTALACION.md) | Hecho. Prueba en Windows con sistema, comandos, resultados y problemas frecuentes en [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md). Falta la de Echenique en su ordenador |
-| Guía para ejecutar la demo | [DEMO.md](DEMO.md) es la demo antigua del laboratorio OTTO; [DEMO-TRACKING.md](DEMO-TRACKING.md) cubre el seguimiento de Atlas; `docs/MINIAPP.md`, la miniapp | Parcial: falta una guía única que siga el orden de la demo final |
-| Ficheros adicionales | `compose.yaml`, `Dockerfile.atlas`, `sql/`, `atlas/`, `scripts/`, `web/`, `tests/` y capturas en `docs/capturas/` | Hecho |
+| 20-minute presentation with the demo | [PRESENTACION.md](PRESENTACION.md) is the old Clickstream Lab script and allocates 20 minutes of presentation plus 10 of demo. [AVANCE-PRESENTACION.md](AVANCE-PRESENTACION.md) is the 5-minute progress update. Slides in `presentaciones/` | Missing: the final 20-minute Delivery Atlas script, with the demo included |
+| Documentation | [FUNDAMENTOS.md](FUNDAMENTOS.md), [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md), [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), [DOCUMENTO-TECNICO-EQUIPO.md](DOCUMENTO-TECNICO-EQUIPO.md) | Done |
+| Step-by-step installation | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 2, and [INSTALACION.md](INSTALACION.md) | Done. Windows test with system, commands, results and common problems in [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md). Echenique's test on his computer is still missing |
+| Guide to run the demo | [DEMO.md](DEMO.md) is the old OTTO lab demo; [DEMO-TRACKING.md](DEMO-TRACKING.md) covers Atlas tracking; [MINIAPP.md](MINIAPP.md), the mini-app | Partial: a single guide following the order of the final demo is missing |
+| Additional files | `compose.yaml`, `Dockerfile.atlas`, `sql/`, `atlas/`, `scripts/`, `web/`, `tests/` and screenshots in `docs/capturas/` | Done |
 
-## Criterios de evaluación
+## Evaluation criteria
 
-| Criterio | Cómo lo cubrimos |
+| Criterion | How we cover it |
 |---|---|
-| Claridad y estructura de la presentación | Pendiente del guion final y de un ensayo cronometrado |
-| Comprensión técnica | [FUNDAMENTOS.md](FUNDAMENTOS.md) y [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md): motores `MergeTree`, orden físico, particiones, vistas materializadas e idempotencia de la cola |
-| Casos reales, rigor con los datos y argumentos | Procedencia separada: real, derivado, `synthetic` y `demo_live`. Cifras con sus condiciones en [RESULTADOS.md](RESULTADOS.md) y [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md) |
-| Calidad y relevancia de la demo | Recorrido completo: miniapp → API → ClickHouse → panel, con un pedido entregado y seguido por GPS |
-| Documentación clara y reproducible | Atlas arranca con una orden y sin datasets grandes; prueba registrada en Windows ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
-| Datasets reales, lenguaje de programación y escalabilidad | OTTO, REES46, Ele.me y Glovo; Python; mil millones de filas derivadas y explicación de réplicas y shards |
-| Creatividad del caso | Plataforma de reparto ficticia con clientes con IA, tráfico concurrente y seguimiento GPS |
-| Responder preguntas y debatir | [PRESENTACION.md](PRESENTACION.md), «Argumentos para preguntas», como base para preparar los 10 minutos de preguntas |
+| Clarity and structure of the presentation | Depends on the final script and a timed rehearsal |
+| Technical understanding | [FUNDAMENTOS.md](FUNDAMENTOS.md) and [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md): `MergeTree` engines, physical order, partitions, materialized views and queue idempotency |
+| Real-world use cases, rigorous data use and strong arguments | Separate provenance: real, derived, `synthetic` and `demo_live`. Figures with their conditions in [RESULTADOS.md](RESULTADOS.md) and [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md) |
+| Quality and relevance of the demo | Full path: mini-app → API → ClickHouse → dashboard, with an order delivered and tracked by GPS |
+| Clear and reproducible documentation | Atlas starts with one command and without large datasets; Windows test recorded ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
+| Real datasets, programming language and scalability | OTTO, REES46, Ele.me and Glovo; Python; a billion derived rows and an explanation of replicas and shards |
+| Creativity of the use case | Fictional delivery platform with AI customers, concurrent traffic and GPS tracking |
+| Answering questions and discussion | [PRESENTACION.md](PRESENTACION.md), "Talking points for questions", as the basis for preparing the 10 minutes of questions |
 
-## Pendiente antes de presentar
+## Pending before the presentation
 
-Por prioridad:
+By priority:
 
-1. **Guion final de 20 minutos** con la demo dentro, y ensayo cronometrado. Actualizar [PRESENTACION.md](PRESENTACION.md), que aún describe Clickstream Lab y 20 + 10 minutos.
-2. **Guía única de la demo final**, paso a paso, con el CRUD dentro y un plan B por si algo falla.
-3. **Integrar la miniapp** (PR de Anuar) en la rama del equipo.
-4. **Prueba de instalación de Echenique** en su ordenador, añadida a [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md).
+1. **Final 20-minute script** with the demo included, and a timed rehearsal. Update [PRESENTACION.md](PRESENTACION.md), which still describes Clickstream Lab and 20 + 10 minutes.
+2. **A single guide for the final demo**, step by step, with CRUD included and a plan B in case something fails.
+3. **Echenique's installation test** on his computer, added to [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md).
 
-Hecho el 19/10: usos habituales y clientes de ClickHouse en [FUNDAMENTOS.md](FUNDAMENTOS.md); [TEORIA-APLICADA.md](TEORIA-APLICADA.md) actualizado a Atlas; prueba de instalación en Windows; `*.sh` con saltos LF en `.gitattributes`; tecnología confirmada en [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) y [REVISION-TEORIA.md](REVISION-TEORIA.md), y Claude añadido a la declaración de uso de IA.
+Done on 19 October: common uses and clients of ClickHouse in [FUNDAMENTOS.md](FUNDAMENTOS.md); [TEORIA-APLICADA.md](TEORIA-APLICADA.md) updated for Atlas; Windows installation test; LF line endings for `*.sh` in `.gitattributes`; technology confirmed in [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) and [REVISION-TEORIA.md](REVISION-TEORIA.md); Claude added to the AI-use statement; documentation and the app's interface translated into English.
 
-Redactado con ayuda de Claude a partir del enunciado y de los documentos del repositorio; revisado por Anuar.
+Written with Claude's help from the project brief and the repository documents; reviewed by Anuar.

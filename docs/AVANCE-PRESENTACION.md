@@ -4,7 +4,7 @@
 
 [Browser presentation](http://127.0.0.1:8000/avance-bd.html). Use arrow keys to navigate, F for full screen and N for notes. The PowerPoint includes speaker notes and editable tables.
 
-This guide covers the five-minute progress update. The detailed course review is in [REVISION-TEORIA.md](REVISION-TEORIA.md), in Spanish. PRESENTACION.md retains the earlier final-presentation outline and still needs adapting.
+This guide covers the five-minute progress update. The detailed course review is in [REVISION-TEORIA.md](REVISION-TEORIA.md). PRESENTACION.md retains the earlier final-presentation outline and still needs adapting.
 
 ## 1. Delivery Atlas
 

@@ -1,133 +1,133 @@
-# Clientes con IA, compras y reparto conectado
+# AI customers, purchases and connected delivery
 
-Ampliación del 14/10/2026. La IA elige acciones sobre un catálogo ficticio; Python valida y ejecuta esas acciones, crea pedidos y genera su GPS. Son compras simuladas, sin pagos. Las acciones representan clics lógicos en nuestra aplicación, no automatización de una web comercial externa.
+Extension of 14 October 2026. The AI chooses actions over a fictional catalog; Python validates and executes those actions, creates orders and generates their GPS. These are simulated purchases, with no payments. The actions represent logical clicks in our application, not automation of an external commercial website.
 
-## Arranque
+## Start
 
 ```bash
 docker compose -f compose.yaml --profile atlas --profile ai up -d --build --wait
 docker compose -f compose.yaml --profile ai exec -T ollama ollama pull qwen3:0.6b
 ```
 
-Abrir http://127.0.0.1:8001/. Elegir **IA local · Ollama**, tres clientes y los repartidores deseados; pulsar **Iniciar clientes y reparto**. La primera decisión puede tardar mientras el modelo se carga. El GPS tiene un hilo independiente.
+Open http://127.0.0.1:8001/. Choose **Local AI · Ollama**, three customers and the number of couriers you want; click **Start customers and delivery**. The first decision may take a while as the model loads. GPS runs on an independent thread.
 
-El perfil `ai` incorpora Ollama y un volumen persistente para los modelos. No publica un puerto del modelo en el host. Ollama se limita a 2 CPU y 2 GiB; la inferencia usa dos hilos y un contexto de 2048 tokens. [Qwen3:0.6b](https://ollama.com/library/qwen3:0.6b) tiene una descarga publicada de unos 523 MB; la imagen de Ollama se descarga aparte. Se usan recursos del ordenador, sin API de pago.
+The `ai` profile adds Ollama and a persistent volume for the models. It does not publish a model port on the host. Ollama is limited to 2 CPUs and 2 GiB; inference uses two threads and a 2048-token context. [Qwen3:0.6b](https://ollama.com/library/qwen3:0.6b) has a published download of about 523 MB; the Ollama image is downloaded separately. It uses the computer's resources, with no paid API.
 
-La imagen Ollama está fijada por digest (versión comprobada `0.40.4`); la evidencia registra su digest y el del modelo. No garantiza resultados idénticos entre versiones. El proveedor recibe solo objetivos ficticios, carrito y opciones del catálogo local. [API de chat](https://docs.ollama.com/api/chat) y [salidas estructuradas](https://docs.ollama.com/capabilities/structured-outputs).
+The Ollama image is pinned by digest (verified version `0.40.4`); the evidence records its digest and the model's. It does not guarantee identical results across versions. The provider only receives fictional goals, the cart and the local catalog options. [Chat API](https://docs.ollama.com/api/chat) and [structured outputs](https://docs.ollama.com/capabilities/structured-outputs).
 
-## Modos diferenciados
+## Distinct modes
 
-- **IA local (ollama):** Qwen propone `action`, índice `choice` y una explicación breve. La aplicación valida la decisión; no se ejecuta código ni SQL producido por el modelo. No hay sustitución automática por una política si la IA falla.
-- **Política local (policy):** baseline reproducible, explícitamente etiquetado sin modelo de IA. Útil para pruebas o un ordenador sin Ollama.
-- **Solo flota anterior (legacy):** conserva el escenario anterior y los generadores históricos. Sus sesiones y pedidos independientes no se reinterpretan como compras enlazadas.
+- **Local AI (ollama):** Qwen proposes an `action`, a `choice` index and a short explanation. The application validates the decision; no code or SQL produced by the model is executed. There is no automatic fallback to a policy if the AI fails.
+- **Local policy (policy):** reproducible baseline, explicitly labelled as having no AI model. Useful for tests or a computer without Ollama.
+- **Previous fleet only (legacy):** keeps the earlier scenario and the historical generators. Its independent sessions and orders are not reinterpreted as linked purchases.
 
-La API `POST /api/simulation/start` admite `mode=customers`, `agent_mode=ollama|policy|hybrid|traffic`, `customers` (1-24 para IA/política; 1-500 para modos masivos), `fleet` (1-150), `interval` (1-10 s) y `seed`. Los clientes tienen una sesión, presupuesto y objetivo. Pueden buscar, comparar, abrir productos, añadir/quitar del carrito, comprar y abandonar. Un pedido espera a que haya un repartidor disponible.
+The `POST /api/simulation/start` API accepts `mode=customers`, `agent_mode=ollama|policy|hybrid|traffic`, `customers` (1-24 for AI/policy; 1-500 for the mass modes), `fleet` (1-150), `interval` (1-10 s) and `seed`. Customers have a session, a budget and a goal. They can search, compare, open products, add to/remove from the cart, buy and abandon. An order waits until a courier is available.
 
-## Identidad del recorrido
+## Identity of the path
 
 ```text
 customer_id + session_id
-   -> app_events (clics lógicos)
-   -> checkout_event_id + order_id + cesta
-   -> customer_orders (compra inmutable)
-   -> order_events (estados del mismo pedido)
-   -> courier_positions (GPS de ese mismo order_id)
+   -> app_events (logical clicks)
+   -> checkout_event_id + order_id + basket
+   -> customer_orders (immutable purchase)
+   -> order_events (statuses of the same order)
+   -> courier_positions (GPS of that same order_id)
 ```
 
-Un checkout válido suma `cantidad * precio_unitario` de los productos del carrito. Solo admite productos del negocio seleccionado y una cesta dentro del presupuesto. Los precios son ficticios y se congelan en la compra. No se inventa otro pedido separado después del clic.
+A valid checkout adds up `quantity * unit_price` of the products in the cart. It only accepts products from the selected business and a basket within budget. Prices are fictional and frozen at purchase. No separate order is invented after the click.
 
-`customer_activity` guarda decisiones, explicación breve, fase y procedencia (`ollama`, `policy`, `system`). `customer_latest_state` y su materializada guardan `argMaxState`; `customer_latest` finaliza el último estado. `customer_orders` enlaza la sesión con el clic de checkout y conserva las líneas de cesta.
+`customer_activity` stores decisions, a short explanation, phase and provenance (`ollama`, `policy`, `system`). `customer_latest_state` and its materialized view store `argMaxState`; `customer_latest` finalizes the latest state. `customer_orders` links the session to the checkout click and keeps the basket lines.
 
-Los eventos de navegación mantienen el contrato v1 y añaden `order_id` opcional. Los reintentos de clientes antiguos sin ese campo conservan su payload normalizado: no se añade automáticamente un nuevo `null` al digest anterior. La migración añade acciones de quitar del carrito y abandono, sin borrar filas históricas.
+Browsing events keep the v1 contract and add an optional `order_id`. Retries from old clients without that field keep their normalized payload: a new `null` is not automatically added to the earlier digest. The migration adds remove-from-cart and abandonment actions, without deleting historical rows.
 
-Un pedido creado sin repartidor usa el UUID cero hasta la asignación. Un repartidor disponible también tiene UUID cero como pedido; el panel lo presenta como disponible. Los estados creados avanzan a preparación, recogida, reparto y entrega en unos 95 s desde la asignación; su plazo ficticio es creación + 120 s. No son tiempos de reparto reales. Al terminar, el repartidor parte desde la posición final hacia la próxima recogida.
+An order created without a courier uses the zero UUID until assignment. An available courier also has the zero UUID as its order; the dashboard shows it as available. Created statuses advance to preparing, pickup, delivery and delivered in about 95 s from assignment; their fictional deadline is creation + 120 s. These are not real delivery times. When it finishes, the courier sets off from the final position towards the next pickup.
 
-## Aceptación, concurrencia y errores
+## Acceptance, concurrency and errors
 
-`CustomerRuntime` prepara una copia del estado de negocio y envía todos los registros de una acción en una única transacción de la cola SQLite. Solo cambia el estado en memoria si la cola los acepta. Así un error/capacidad llena no crea una compra fantasma en memoria.
+`CustomerRuntime` prepares a copy of the business state and sends all the records of an action in a single transaction of the SQLite queue. It only changes the in-memory state if the queue accepts them. This way an error or a full queue does not create a phantom purchase in memory.
 
-El publicador hace INSERTs por tabla. No hay una transacción entre ClickHouse y SQLite ni entre esos INSERTs; las relaciones pueden aparecer en momentos ligeramente distintos. Las tablas de detalle usan reemplazo/FINAL y las vistas de último estado usan `argMax`. Se conservan las protecciones frente a reintentos y eventos tardíos.
+The publisher performs one INSERT per table. There is no transaction between ClickHouse and SQLite, nor between those INSERTs; the relationships may appear at slightly different moments. The detail tables use replacement/FINAL and the latest-state views use `argMax`. The protections against retries and late events are kept.
 
-La decisión se valida contra la revisión vigente del cliente: una respuesta antigua no compra sobre otra sesión. Parar impide aceptar respuestas del modelo que todavía estén en vuelo; la inferencia ya enviada puede terminar después. Reiniciar no reconstruye los carritos ni reanuda automáticamente la ejecución anterior; los hechos aceptados y pendientes sí permanecen en la cola/base.
+The decision is validated against the customer's current revision: an old response does not buy on another session. Stopping prevents accepting model responses still in flight; inference already sent may finish afterwards. Restarting does not rebuild carts or automatically resume the earlier run; accepted and pending facts do remain in the queue/database.
 
-Máximo 14 pasos por sesión, cinco unidades en el carrito, `max(100, clientes*2)` pedidos activos y 120 llamadas de modelo por run. Tras tres decisiones fallidas consecutivas se detienen nuevas decisiones y el panel lo indica; los pedidos ya creados siguen avanzando. El límite de llamadas también pausa las decisiones. Parar e iniciar crea otra ejecución. Son límites operativos de una demo local.
+A maximum of 14 steps per session, five units in the cart, `max(100, customers*2)` active orders and 120 model calls per run. After three consecutive failed decisions, new decisions stop and the dashboard says so; orders already created keep progressing. The call limit also pauses decisions. Stopping and starting creates another run. These are operating limits of a local demo.
 
-## Qué consultar en el dashboard
+## What to look at on the dashboard
 
-- Clientes: presupuesto, acción, explicación, producto/negocio, carrito y pedido.
-- **Ver reparto:** selecciona el repartidor que actualmente lleva ese pedido. Cuando ya no lo lleva, no atribuye su nueva posición a una entrega pasada.
-- Detalle del mapa: cliente, sesión y clic de compra del pedido seleccionado.
-- Pedidos: cliente/sesión y estado de entrega. La lista sigue limitada a 200.
-- Actividad: últimas 30 acciones, diferenciando decisiones de modelo, política y sistema.
-- Contadores de clientes: solo el run seleccionado, calculados desde el registro lógico de actividad. El panel de navegación inferior conserva todo el histórico Atlas, identificado aparte.
+- Customers: budget, action, explanation, product/business, cart and order.
+- **View delivery:** selects the courier currently carrying that order. Once it no longer carries it, its new position is not attributed to a past delivery.
+- Map detail: customer, session and purchase click of the selected order.
+- Orders: customer/session and delivery status. The list is still limited to 200.
+- Activity: last 30 actions, distinguishing model, policy and system decisions.
+- Customer counters: only the selected run, computed from the logical activity log. The browsing panel below keeps the whole Atlas history, labelled separately.
 
-Todas las filas de clientes, compras y rutas son sintéticas y se leen desde ClickHouse. El frontend no mueve una flota por separado ni rellena cifras con datos aleatorios. Los controles y la cola reflejan estado del proceso; los contadores analíticos reflejan publicaciones en la base.
+All customer, purchase and route rows are synthetic and read from ClickHouse. The frontend does not move a fleet on its own or fill figures with random data. Controls and the queue reflect process state; the analytical counters reflect what has been published to the database.
 
-## Archivos
+## Files
 
-| Parte | Código |
+| Part | Code |
 |---|---|
-| Decisiones y proveedor local | `atlas/customer_agent.py` |
-| Carrito, checkout, asignación y entrega | `atlas/commerce.py` |
-| Hilos y aceptación antes de cambiar estado | `atlas/customer_runtime.py` |
-| Arranque compatible | `atlas/simulation.py`, `atlas/server.py` |
-| SQL aditivo y estados agregados | `sql/atlas_agents.sql` |
-| Lecturas y enlace del panel | `atlas/clickhouse.py`, `web/atlas-dashboard.*` |
-| Pruebas de compra/cola/entrega | `tests/test_commerce.py` |
+| Decisions and local provider | `atlas/customer_agent.py` |
+| Cart, checkout, assignment and delivery | `atlas/commerce.py` |
+| Threads and acceptance before changing state | `atlas/customer_runtime.py` |
+| Compatible start-up | `atlas/simulation.py`, `atlas/server.py` |
+| Additive SQL and aggregate states | `sql/atlas_agents.sql` |
+| Dashboard reads and links | `atlas/clickhouse.py`, `web/atlas-dashboard.*` |
+| Purchase/queue/delivery tests | `tests/test_commerce.py` |
 
-Las guías de 17 y cuatro páginas describen la etapa previa. Esta ampliación incorpora la relación checkout-pedido que figuraba pendiente; la miniapp comercial manual y su checkout siguen siendo una futura interfaz sobre este backend.
+The 17-page and four-page guides describe the earlier stage. This extension adds the checkout-order link that was pending; the manual commercial mini-app and its checkout are a separate interface on top of this backend ([MINIAPP.md](MINIAPP.md)).
 
-## Compartición
+## Sharing
 
-La lectura usa las rutas públicas existentes: `/api/operations` incorpora clientes, decisiones y compras; `/api/simulation` expone modo/modelo y contadores seguros. Se conserva el acceso de solo lectura y el token del gateway. Hay que reconstruir el gateway y publicar la web nueva para ver la ampliación desde Vercel; actualizar la URL temporal si el túnel ha cambiado. No se expone la API de Ollama ni sus controles.
+Reading uses the existing public routes: `/api/operations` includes customers, decisions and purchases; `/api/simulation` exposes mode/model and safe counters. Read-only access and the gateway token are kept. The gateway must be rebuilt and the new website published to see the extension on Vercel; update the temporary URL if the tunnel has changed. The Ollama API and its controls are not exposed.
 
-## Verificación
+## Verification
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-Las pruebas comprueban el vínculo real entre clic, cesta y pedido; rechazo de checkout vacío o repetido; presupuesto/opciones inventadas; rollback por cola llena; compatibilidad de reintentos antiguos; identidad del GPS y continuidad del repartidor entre pedidos. La prueba con IA real debe registrar run/modelo, una compra, la relación en ClickHouse y su entrega; la política de prueba no sustituye esa evidencia.
+The tests check the real link between click, basket and order; rejection of an empty or repeated checkout; invented budget/options; rollback on a full queue; compatibility of old retries; GPS identity and courier continuity between orders. The test with real AI must record the run/model, a purchase, the relationship in ClickHouse and its delivery; the test policy does not replace that evidence.
 
-### Prueba comprobada en el equipo
+### Test verified on the team machine
 
-`docs/evidencia-clientes.json` conserva una compra decidida por el modelo local, su cesta comprobada contra el importe, el clic/sesión enlazados y las posiciones del mismo pedido hasta la entrega. Ejecutar `python3 scripts/check_customer_agent.py --mode ollama` para repetirlo (sin otra ejecución activa), o añadir `--existing` para comprobar la actual. La carga inicial del modelo y las decisiones tardan varios segundos; no se producen millones de llamadas de IA. El volumen masivo sigue aportándolo el laboratorio histórico/generadores, mientras la IA alimenta el recorrido conectado en directo.
+`docs/evidencia-clientes.json` keeps a purchase decided by the local model, its basket checked against the total, the linked click/session and the positions of the same order up to delivery. Run `python3 scripts/check_customer_agent.py --mode ollama` to repeat it (with no other run active), or add `--existing` to check the current one. Loading the model initially and the decisions take several seconds; millions of AI calls are not made. The massive volume still comes from the historical lab/generators, while the AI feeds the connected live path.
 
-Se observaron rechazos transitorios de lecturas por el límite global de memoria de ClickHouse durante fusiones en segundo plano. El cliente reintenta solo lecturas con el código 241, hasta dos veces; un fallo persistente se muestra en el panel. Las escrituras siguen usando la cola y su publicador. Esta demo no implica un SLA de latencia ni mide conducta comercial real.
+Transient read rejections caused by ClickHouse's global memory limit during background merges were observed. The client retries only reads with code 241, up to twice; a persistent failure is shown on the dashboard. Writes still use the queue and its publisher. This demo does not imply a latency SLA or measure real commercial behaviour.
 
-### Publicación y revisión visual
+### Publication and visual review
 
-- Código desplegado: `36ea395`, proyecto Vercel `delivery-atlas-demo`, equipo `contrerasgeremi-gmailcoms-projects`, entorno producción, estado Ready.
-- Enlace: https://delivery-atlas-demo.vercel.app/. El portátil, Ollama, Atlas, ClickHouse y el túnel deben permanecer encendidos. Los controles están en http://127.0.0.1:8001/.
-- Comprobado: tres clientes del run local visibles a través del proxy; HTML sin controles de inicio; POST público rechazado con 405; sin errores de JavaScript registrados durante la visita.
-- Revisado escritorio y móvil de 390 px: sin desbordamiento horizontal de la página. Las tablas conservan desplazamiento horizontal dentro de su contenedor.
-- Captura de la versión publicada: `docs/capturas/clientes-ia-publico.png`; el clic «Ver reparto» mostró el mismo cliente, sesión, checkout y pedido en el detalle del mapa.
-- Las capturas de escritorio/móvil anteriores registran la revisión previa a convertir los importes enviados al modelo a euros. La captura pública corresponde a la versión final. Las explicaciones de un modelo pequeño pueden ser imprecisas; la validación y el importe de la compra dependen del catálogo y del carrito, no de ese texto.
+- Deployed code: `36ea395`, Vercel project `delivery-atlas-demo`, team `contrerasgeremi-gmailcoms-projects`, production environment, status Ready.
+- Link: https://delivery-atlas-demo.vercel.app/. The laptop, Ollama, Atlas, ClickHouse and the tunnel must stay on. The controls are at http://127.0.0.1:8001/.
+- Verified: three customers from the local run visible through the proxy; HTML without start controls; public POST rejected with 405; no JavaScript errors logged during the visit.
+- Desktop and 390 px mobile reviewed: no horizontal overflow of the page. Tables keep horizontal scrolling inside their container.
+- Screenshot of the published version: `docs/capturas/clientes-ia-publico.png`; clicking "View delivery" showed the same customer, session, checkout and order in the map detail.
+- The earlier desktop/mobile screenshots record the review before the amounts sent to the model were converted to euros. The public screenshot is of the final version. The explanations of a small model can be imprecise; the validation and the purchase total depend on the catalog and the cart, not on that text.
 
-## Tráfico concurrente — ampliación del 14/10
+## Concurrent traffic — extension of 14 October
 
-El modo **IA + tráfico masivo (hybrid)** combina los tres primeros clientes con Ollama y el resto con un simulador de tráfico explícitamente etiquetado. Escenario activado: **200 clientes y 80 repartidores**. El modo **Simulador de tráfico (traffic)** no usa un modelo. IA y política anteriores conservan su funcionamiento y se limitan a 24 clientes; los modos masivos admiten hasta 500 clientes y 150 repartidores.
+**AI + mass traffic (hybrid)** mode combines the first three customers with Ollama and the rest with an explicitly labelled traffic simulator. Scenario enabled: **200 customers and 80 couriers**. **Traffic simulator (traffic)** mode does not use a model. The earlier AI and policy modes keep their behaviour and are limited to 24 customers; the mass modes accept up to 500 customers and 150 couriers.
 
-El simulador elige productos dentro del presupuesto, permite ampliar o modificar carritos y también abandonar. Uno de cada cinco perfiles de tráfico explora y abandona siempre: vuelve a visitar la aplicación y mantiene clics continuos mientras otros esperan la entrega. Los demás también pueden abandonar una visita con una probabilidad configurada del 12 %. Son parámetros de demo, no tasas observadas. Pausas de 1,2–3,8 s por acción y arranques escalonados de hasta ocho segundos distribuyen la actividad. Un hilo procesa por lotes todos los clientes elegibles cada medio segundo: una sola copia del estado y transacción de cola por lote, sin cientos de hilos ni llamadas de IA. Un segundo hilo decide para los tres clientes de IA; el hilo GPS continúa independiente. La semilla reproduce elecciones y pausas, pero la ejecución real depende del reloj y de la inferencia.
+The simulator chooses products within budget, can extend or change carts and can also abandon. One in five traffic profiles always browses and abandons: it keeps revisiting the application and produces continuous clicks while others wait for delivery. The rest can also abandon a visit with a configured probability of 12 %. These are demo parameters, not observed rates. Pauses of 1.2–3.8 s per action and staggered starts of up to eight seconds spread the activity. One thread processes all eligible customers in batches every half second: a single copy of the state and one queue transaction per batch, without hundreds of threads or AI calls. A second thread decides for the three AI customers; the GPS thread stays independent. The seed reproduces choices and pauses, but the actual run depends on the clock and on inference.
 
-Todas las compras siguen usando el mismo checkout y la misma cesta, asignación y GPS. El límite de pedidos activos pasa a `max(100, clientes*2)` para permitir compras que esperan un repartidor. Llegar a 120 llamadas o a tres errores de Ollama pausa solo la IA; el tráfico continúa. Si la cola está llena, el lote de tráfico se descarta en memoria y se reintenta posteriormente; un fallo del hilo GPS todavía detiene la ejecución completa.
+All purchases still use the same checkout and the same basket, assignment and GPS. The active-order limit becomes `max(100, customers*2)` to allow purchases waiting for a courier. Reaching 120 calls or three Ollama errors pauses only the AI; traffic continues. If the queue is full, the traffic batch is discarded in memory and retried later; a failure of the GPS thread still stops the whole run.
 
-El dashboard muestra doce clientes en el resumen (los tres de IA y actividad reciente), con un botón para verlos todos. Los contadores incluyen el conjunto completo. Los marcadores de flotas grandes son más pequeños y solo el seleccionado lleva número; todos se pueden elegir en la lista. Sus coordenadas proceden de ClickHouse. Las posiciones iniciales se distribuyen alrededor de las zonas del catálogo para evitar que ochenta repartidores comiencen en doce puntos superpuestos.
+The dashboard shows twelve customers in the summary (the three AI customers and recent activity), with a button to show them all. The counters include the full set. Markers for large fleets are smaller and only the selected one has a number; all of them can be chosen from the list. Their coordinates come from ClickHouse. Initial positions are spread around the catalog's areas so that eighty couriers do not start on twelve overlapping points.
 
 ```bash
-# Tras arrancar los perfiles atlas y ai y descargar el modelo:
+# After starting the atlas and ai profiles and downloading the model:
 curl -X POST http://127.0.0.1:8001/api/simulation/start \
   -H 'Content-Type: application/json' \
   -d '{"mode":"customers","agent_mode":"hybrid","customers":200,"fleet":80,"interval":2,"seed":42}'
 python3 scripts/check_traffic.py
 ```
 
-Parar la ejecución anterior con el control local antes de iniciar otra. `docs/evidencia-trafico.json` recoge clientes, pico de repartidores asignados simultáneamente, movimientos observados, decisiones publicadas, entregas y cola. No representa usuarios de Uber Eats ni un benchmark de máxima capacidad.
+Stop the previous run with the local control before starting another. `docs/evidencia-trafico.json` records customers, the peak of couriers assigned simultaneously, observed movements, published decisions, deliveries and the queue. It does not represent Uber Eats users or a maximum-capacity benchmark.
 
-El listado de 200 pedidos prioriza los activos y asignados. El servidor resuelve sus enlaces de compra por order_id, incluso si su checkout ya está fuera de las últimas 200 compras, para conservar cliente y sesión en el mapa. Los contadores de pedidos siguen incluyendo todo el run.
+The list of 200 orders prioritizes active and assigned ones. The server resolves their purchase links by order_id, even if their checkout is already outside the last 200 purchases, to keep the customer and session on the map. The order counters still include the whole run.
 
-### Reloj y compras concurrentes
+### Clock and concurrent purchases
 
-La carga detectó una carrera: el hilo GPS capturaba `now` antes de entrar en el bloqueo del estado. Una compra podía confirmarse durante esa espera y aparecer creada después del timestamp del GPS. La validación rechazaba la asignación y detenía la ingesta. El reloj se captura ahora dentro del bloqueo y después de copiar el estado. La nueva prueba retiene el GPS mientras confirma un checkout: falla con la implementación anterior y pasa con la corregida. Las 20 pruebas pasan. No se relajan las restricciones temporales del pedido.
+The load revealed a race: the GPS thread captured `now` before entering the state lock. A purchase could be confirmed during that wait and appear as created after the GPS timestamp. Validation rejected the assignment and stopped ingestion. The clock is now captured inside the lock and after copying the state. The new test holds the GPS while confirming a checkout: it fails with the earlier implementation and passes with the fixed one. All 20 tests pass. The order's time constraints are not relaxed.
 
-Las cifras de `evidencia-trafico.json` son acumuladas por run; su ventana mide únicamente la observación de movimiento. `evidencia-enlaces-trafico.json` registra, en una ejecución anterior, tres enlaces resueltos fuera de las últimas 200 compras. El intervalo GPS solicitado sigue siendo dos segundos y el panel muestra el retraso efectivo.
+The figures in `evidencia-trafico.json` are cumulative per run; its window only measures the observation of movement. `evidencia-enlaces-trafico.json` records, in an earlier run, three links resolved outside the last 200 purchases. The requested GPS interval is still two seconds and the dashboard shows the effective delay.

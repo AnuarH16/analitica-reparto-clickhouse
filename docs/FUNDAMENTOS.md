@@ -1,121 +1,121 @@
-# ClickHouse: fundamentos, arquitectura y reflexión crítica
+# ClickHouse: fundamentals, architecture and critical reflection
 
-## Encaje en BD2
+## Fit with the BD2 course
 
-ClickHouse es una **base de datos columnar OLAP con SQL**. En una clasificación de NoSQL suele tratarse como almacén analítico de columnas, pero no debe presentarse como motor «sin SQL»: utiliza un dialecto SQL. Conviene explicar al profesor este matiz al principio. Su problema central aquí es responder agregaciones sobre cientos de millones de eventos mientras entran lotes nuevos.
+ClickHouse is a **columnar OLAP database with SQL**. In a NoSQL classification it is usually treated as a column-oriented analytical store, but it should not be presented as a "no SQL" engine: it uses an SQL dialect. It is worth explaining this nuance to the professor at the start. Its central problem here is answering aggregations over hundreds of millions of events while new batches keep arriving.
 
-La idea de producto se inspira en la analítica de navegación que necesitaría una plataforma de reparto: volumen por tiempo, exploración de productos o categorías, acciones de cesta y compra. **Las fuentes reales disponibles no son Uber Eats ni Glovo**. OTTO sí contiene clics explícitos; REES46 contiene vistas, carritos y compras. No se suman como si fueran el mismo suceso o la misma población.
+The product idea is inspired by the browsing analytics that a delivery platform would need: volume over time, exploration of products or categories, cart actions and purchases. **The real sources available are not Uber Eats or Glovo**. OTTO does contain explicit clicks; REES46 contains views, carts and purchases. They are not added up as if they were the same event or the same population.
 
-## Dónde se usa ClickHouse
+## Where ClickHouse is used
 
-El proyecto empezó en 2009 para una plataforma de analítica web y se publicó como código abierto en 2016, con licencia Apache 2 ([historia oficial](https://clickhouse.com/docs/about-us/history)). En la lista oficial de usuarios, Yandex Metrica aparece como el producto principal construido sobre ClickHouse.
+The project started in 2009 for a web analytics platform and was released as open source in 2016 under the Apache 2 license ([official history](https://clickhouse.com/docs/about-us/history)). In the official list of adopters, Yandex Metrica appears as the main product built on ClickHouse.
 
-La documentación agrupa sus usos habituales en cuatro familias ([casos de uso](https://clickhouse.com/docs/use-cases)):
+The documentation groups its common uses into four families ([use cases](https://clickhouse.com/docs/use-cases)):
 
-| Uso | Por qué encaja |
+| Use | Why it fits |
 |---|---|
-| Analítica en tiempo real y series temporales | Datos con marca de tiempo que llegan sin parar y se agregan por intervalos |
-| Observabilidad: logs, métricas y trazas | Mucho volumen que se añade y casi nunca se modifica; se filtra por tiempo y servicio |
-| Almacén analítico y consultas sobre data lakes | Agregaciones sobre tablas muy grandes con SQL |
-| Machine learning e IA generativa | Explorar y preparar grandes conjuntos de datos para modelos |
+| Real-time analytics and time series | Timestamped data that keeps arriving and is aggregated by interval |
+| Observability: logs, metrics and traces | Large volumes that are appended and almost never modified; filtered by time and service |
+| Analytical warehouse and queries over data lakes | Aggregations over very large tables with SQL |
+| Machine learning and generative AI | Exploring and preparing large datasets for models |
 
-Algunos ejemplos de la [lista oficial de usuarios](https://clickhouse.com/docs/about-us/adopters):
+Some examples from the [official list of adopters](https://clickhouse.com/docs/about-us/adopters):
 
-| Empresa | Sector | Uso declarado |
+| Company | Industry | Stated use |
 |---|---|---|
-| Cloudflare | CDN | Análisis de tráfico |
-| Uber | Transporte | Logs |
-| eBay | Comercio electrónico | Logs, métricas y eventos |
-| GitLab | Desarrollo y DevOps | Monitorización del rendimiento de aplicaciones (APM) |
-| Spotify | Música | Experimentación |
-| Deutsche Bank | Finanzas | Analítica de negocio (BI) |
-| Instacart | Reparto | Ingeniería e infraestructura de datos |
-| DoorDash | Comercio electrónico | Monitorización |
-| Zomato | Pedidos de comida a domicilio | Logs y reparto de comida |
+| Cloudflare | CDN | Traffic analysis |
+| Uber | Transport | Logging |
+| eBay | E-commerce | Logs, metrics and events |
+| GitLab | Code and DevOps | Application performance monitoring (APM) |
+| Spotify | Music | Experimentation |
+| Deutsche Bank | Finance | Business intelligence (BI) |
+| Instacart | Delivery | Data engineering and infrastructure |
+| DoorDash | E-commerce | Monitoring |
+| Zomato | Online food ordering | Logging and food delivery |
 
-Las entradas las aportan las propias empresas, a menudo con charlas o artículos de años anteriores. No demuestran que lo sigan usando hoy ni a qué escala.
+The entries are submitted by the companies themselves, often with talks or articles from previous years. They do not prove that the companies still use it today or at what scale.
 
-Todos estos usos comparten un patrón: muchos eventos que se añaden y casi no se modifican, y consultas que agregan millones de filas leyendo pocas columnas. Es el mismo trabajo que necesita la plataforma de reparto ficticia de este proyecto. Varias empresas de reparto de la lista lo usan para logs, monitorización e infraestructura de datos.
+All these uses share a pattern: many events that are appended and rarely modified, and queries that aggregate millions of rows while reading few columns. It is the same workload that this project's fictional delivery platform needs. Several delivery companies on the list use it for logging, monitoring and data infrastructure.
 
-## Modelo de datos
+## Data model
 
-| Tabla | Procedencia | Grano | Motor y orden |
+| Table | Source | Grain | Engine and order |
 |---|---|---|---|
-| `otto_archive` | OTTO real | Un clic, carrito o pedido de una sesión | `MergeTree`, mes; `(event_time,session_id,event_position)` |
-| `otto_replay` | OTTO real reinsertado | Un evento reproducido con `ingested_at` nuevo | `MergeTree`, día de inserción |
-| `live_clicks` | Esta página | Un clic de un visitante de la demo | `MergeTree` |
-| `rees46_events` | REES46 real | Una vista, carrito o compra | `MergeTree`, mes; `(event_date,event_type,category_id,product_id)` |
-| `otto_scale_benchmark` | Derivado | Una copia etiquetada de un evento OTTO | `MergeTree`, mes; `scenario` explicita origen |
-| `otto_daily_rollup` | Agregado de OTTO | Recuento parcial por fecha y tipo | `SummingMergeTree` + vista materializada |
+| `otto_archive` | Real OTTO | One click, cart or order within a session | `MergeTree`, month; `(event_time,session_id,event_position)` |
+| `otto_replay` | Real OTTO, re-inserted | One replayed event with a new `ingested_at` | `MergeTree`, insertion day |
+| `live_clicks` | This page | One click from a demo visitor | `MergeTree` |
+| `rees46_events` | Real REES46 | One view, cart or purchase | `MergeTree`, month; `(event_date,event_type,category_id,product_id)` |
+| `otto_scale_benchmark` | Derived | A labelled copy of an OTTO event | `MergeTree`, month; `scenario` makes the origin explicit |
+| `otto_daily_rollup` | OTTO aggregate | Partial count by date and type | `SummingMergeTree` + materialized view |
 
-El ETL OTTO convierte cada sesión JSONL en varias filas, una por evento. REES46 se lee desde siete CSV.gz sin extraerlos a disco: `gzip` alimenta a `clickhouse-client`. Los archivos temporales comprimidos y las tablas persistentes tienen usos distintos.
+The OTTO ETL turns each JSONL session into several rows, one per event. REES46 is read from seven CSV.gz files without extracting them to disk: `gzip` feeds `clickhouse-client`. Temporary compressed files and persistent tables serve different purposes.
 
-En `MergeTree`, el `ORDER BY` determina el orden físico y el índice primario disperso de los datos. Las particiones ayudan a eliminar meses enteros cuando un filtro coincide con ellas; el orden ayuda a localizar rangos dentro de las partes. `LowCardinality(String)` resulta apropiado para tipos de evento y marcas repetidas. Leer solo las columnas necesarias reduce bytes frente a una lectura de filas completas. No todo `WHERE` será igual de eficiente: hay que comprobar la consulta y los índices con `EXPLAIN indexes = 1`.
+In `MergeTree`, the `ORDER BY` determines the physical order and the sparse primary index of the data. Partitions help skip whole months when a filter matches them; the order helps locate ranges within parts. `LowCardinality(String)` suits repeated event types and brands. Reading only the columns needed reduces bytes compared with reading full rows. Not every `WHERE` will be equally efficient: the query and the indexes must be checked with `EXPLAIN indexes = 1`.
 
-La vista materializada recibe los lotes **insertados después de su creación** y añade sus recuentos a `otto_daily_rollup`. Para un archivo ya cargado, `scripts/rollup.py` hace el backfill explícito. En `SummingMergeTree` puede haber varias filas físicas con la misma clave hasta que se fusionen partes; por eso la consulta utiliza `sum(events) GROUP BY event_date,event_type`, en lugar de asumir que cada clave ocupa exactamente una fila física. Las 87 combinaciones día/tipo de OTTO son la unidad lógica del agregado.
+The materialized view receives the batches **inserted after it was created** and adds their counts to `otto_daily_rollup`. For an archive that is already loaded, `scripts/rollup.py` performs the backfill explicitly. In `SummingMergeTree` there may be several physical rows with the same key until parts are merged; that is why the query uses `sum(events) GROUP BY event_date,event_type` instead of assuming that each key takes exactly one physical row. The 87 OTTO day/type combinations are the logical unit of the aggregate.
 
-## Consistencia y disponibilidad
+## Consistency and availability
 
-La demo usa **un solo nodo** con volumen Docker persistente. Tras una inserción confirmada, una consulta puede leer las nuevas filas; las fusiones de partes ocurren luego en segundo plano. No hay réplicas ni alta disponibilidad: si el contenedor está caído, el dashboard no responde. El reproductor reenvía eventos históricos a otra tabla, y sus consultas por `ingested_at` no cambian la fecha original del suceso.
+The demo uses **a single node** with a persistent Docker volume. After a confirmed insert, a query can read the new rows; part merges happen later in the background. There are no replicas and no high availability: if the container is down, the dashboard does not respond. The replayer resends historical events to another table, and its queries by `ingested_at` do not change the original date of the event.
 
-Con este volumen, las fusiones también forman parte de la operación: compiten por CPU, disco y memoria con las consultas. En esta máquina de unos 4 GB, el valor inicial permitía hasta 32 fusiones simultáneas; `clickhouse-config.xml` fija cuatro y ajusta los umbrales internos de MergeTree para que las mutaciones sigan siendo válidas. Se sacrifica velocidad de compactación para mantener recursos disponibles al panel. [La documentación oficial](https://clickhouse.com/docs/reference/settings/server-settings/settings/background) indica que reducir el pool exige reiniciar el servidor, y [explica](https://clickhouse.com/docs/reference/settings/server-settings/settings/background-merges) cómo el ratio multiplica la concurrencia.
+At this volume, merges are also part of operations: they compete with queries for CPU, disk and memory. On this machine with about 4 GB, the default allowed up to 32 simultaneous merges; `clickhouse-config.xml` sets four and adjusts MergeTree's internal thresholds so that mutations remain valid. Compaction speed is traded for keeping resources available to the dashboard. [The official documentation](https://clickhouse.com/docs/reference/settings/server-settings/settings/background) states that reducing the pool requires a server restart, and [explains](https://clickhouse.com/docs/reference/settings/server-settings/settings/background-merges) how the ratio multiplies concurrency.
 
-Para un despliegue distribuido se pueden distribuir fragmentos mediante tablas `Distributed` y conservar copias con `ReplicatedMergeTree` y ClickHouse Keeper. Eso requiere configuración adicional y tiene consecuencias de consistencia y latencia; **no se demuestra ni se simula con el contenedor local**. Se explica con el diagrama y con la limitación observada de un nodo.
+For a distributed deployment, shards can be spread with `Distributed` tables and copies kept with `ReplicatedMergeTree` and ClickHouse Keeper. That requires additional configuration and has consequences for consistency and latency; **it is neither demonstrated nor simulated with the local container**. It is explained with the diagram and with the observed limitation of a single node.
 
-## Experimento que justifica ClickHouse
+## Experiment that justifies ClickHouse
 
-`scripts/benchmark.py` formula exactamente la misma pregunta al archivo de 216.716.096 eventos OTTO y al agregado diario. Compara resultados antes de aceptar la medición. Registra tiempo, `rows_read` y `bytes_read` de la respuesta JSON de ClickHouse, con caché de consultas desactivada. Ejecuta tres veces cada consulta OTTO y toma la mediana. También cuenta tipos en un mes REES46 y agrupa la tabla derivada de 1.083.580.480 filas por escenario. El informe queda en `data/query-benchmark.json`.
+`scripts/benchmark.py` asks exactly the same question of the archive of 216,716,096 OTTO events and of the daily aggregate. It compares the results before accepting the measurement. It records time, `rows_read` and `bytes_read` from ClickHouse's JSON response, with the query cache disabled. It runs each OTTO query three times and takes the median. It also counts types in one REES46 month and groups the derived table of 1,083,580,480 rows by scenario. The report is saved to `data/query-benchmark.json`.
 
-El resultado medido pertenece a **este equipo, estas tablas y esta pregunta**. No implica que ClickHouse siempre gane a PostgreSQL ni que un agregado equivalente en PostgreSQL sea lento. La ventaja que se ilustra es concreta: calcular una respuesta repetida una vez durante la ingestión evita volver a leer millones de eventos para cada petición del panel.
+The measured result belongs to **this machine, these tables and this question**. It does not mean that ClickHouse always beats PostgreSQL, nor that an equivalent aggregate in PostgreSQL would be slow. The advantage illustrated is specific: computing a repeated answer once during ingestion avoids re-reading millions of events for every dashboard request.
 
-## Inserción, lectura, actualización y borrado
+## Insert, read, update and delete
 
-- Inserción: el ETL usa lotes; el dashboard envía un evento nuevo por clic; el reproductor ingresa lotes pequeños.
-- Lectura: `SELECT` con filtros temporales, `GROUP BY`, `countIf`, `uniqCombined64` y agregados.
-- Actualización y borrado: `scripts/crud_demo.py` ejecuta `ALTER TABLE ... UPDATE/DELETE` en una tabla de ensayo. Son mutaciones más costosas que el patrón de añadir eventos y consultar agregados; no se modifica masivamente el archivo histórico para mostrar CRUD.
+- Insert: the ETL uses batches; the dashboard sends one new event per click; the replayer ingests small batches.
+- Read: `SELECT` with time filters, `GROUP BY`, `countIf`, `uniqCombined64` and aggregates.
+- Update and delete: `scripts/crud_demo.py` runs `ALTER TABLE ... UPDATE/DELETE` on a scratch table. These are mutations, more expensive than the pattern of appending events and querying aggregates; the historical archive is not modified in bulk just to show CRUD.
 
-## Interfaces, clientes y herramientas
+## Interfaces, clients and tools
 
-El servidor acepta conexiones por varias interfaces ([interfaces](https://clickhouse.com/docs/interfaces/overview), [puertos](https://clickhouse.com/docs/guides/sre/network-ports)):
+The server accepts connections through several interfaces ([interfaces](https://clickhouse.com/docs/interfaces/overview), [ports](https://clickhouse.com/docs/guides/sre/network-ports)):
 
-| Interfaz | Puerto por defecto | En este proyecto |
+| Interface | Default port | In this project |
 |---|---:|---|
-| HTTP | 8123 (8443 con TLS) | La usan la API de Atlas y los scripts de Python. Compose la publica en `127.0.0.1:8124` |
-| Protocolo nativo TCP | 9000 | Lo usa `clickhouse-client` dentro del contenedor. No se publica fuera |
-| Emulación de MySQL y PostgreSQL | 9004 y 9005 | No se usan |
-| gRPC | 9100 | No se usa |
+| HTTP | 8123 (8443 with TLS) | Used by the Atlas API and the Python scripts. Compose publishes it on `127.0.0.1:8124` |
+| Native TCP protocol | 9000 | Used by `clickhouse-client` inside the container. Not published outside |
+| MySQL and PostgreSQL emulation | 9004 and 9005 | Not used |
+| gRPC | 9100 | Not used |
 
-Herramientas disponibles:
+Available tools:
 
-- **Consola:** `clickhouse-client`, por ejemplo `docker exec -it bd2-clickhouse clickhouse-client --user demo --password demo`.
-- **Interfaces web del propio servidor:** `/play` para lanzar SQL y `/dashboard` con gráficas del servidor. Con nuestro Compose están en http://127.0.0.1:8124/play y http://127.0.0.1:8124/dashboard.
-- **Librerías oficiales** ([clientes por lenguaje](https://clickhouse.com/docs/integrations/language-clients)): Python (`clickhouse-connect`), JavaScript, Go, Java (también JDBC y R2DBC), C#, Rust, C++ y C. También hay drivers JDBC, ODBC y ADBC para herramientas de BI.
-- **Visualización:** Grafana con el plugin `grafana-clickhouse-datasource`, que usaba la versión anterior de este repositorio.
+- **Console:** `clickhouse-client`, for example `docker exec -it bd2-clickhouse clickhouse-client --user demo --password demo`.
+- **The server's own web interfaces:** `/play` to run SQL and `/dashboard` with server charts. With our Compose they are at http://127.0.0.1:8124/play and http://127.0.0.1:8124/dashboard.
+- **Official libraries** ([language clients](https://clickhouse.com/docs/integrations/language-clients)): Python (`clickhouse-connect`), JavaScript, Go, Java (also JDBC and R2DBC), C#, Rust, C++ and C. There are also JDBC, ODBC and ADBC drivers for BI tools.
+- **Visualization:** Grafana with the `grafana-clickhouse-datasource` plugin, used by the previous version of this repository.
 
-**Por qué Atlas usa HTTP con la biblioteca estándar de Python.** `atlas/clickhouse.py` envía el SQL por HTTP con `urllib`:
+**Why Atlas uses HTTP with Python's standard library.** `atlas/clickhouse.py` sends SQL over HTTP with `urllib`:
 
-- No añade dependencias: la imagen de la API y los scripts solo necesitan Python.
-- Es la interfaz que también usa el cliente oficial, `clickhouse-connect` ([cliente de Python](https://clickhouse.com/docs/integrations/python)).
-- Las consultas del panel pasan los valores como parámetros tipados del servidor (`{run:UUID}` con `param_run`), sin concatenarlos en el SQL.
-- Las inserciones van por lotes con `INSERT … FORMAT JSONEachRow`.
+- It adds no dependencies: the API image and the scripts only need Python.
+- It is the same interface used by the official client, `clickhouse-connect` ([Python client](https://clickhouse.com/docs/integrations/python)).
+- Dashboard queries pass values as typed server-side parameters (`{run:UUID}` with `param_run`) instead of concatenating them into the SQL.
+- Inserts are sent in batches with `INSERT … FORMAT JSONEachRow`.
 
-El coste es escribir a mano la autenticación, el formato de las respuestas y el manejo de errores, que `clickhouse-connect` ya resuelve.
+The cost is writing authentication, response parsing and error handling by hand, which `clickhouse-connect` already solves.
 
-## Calidad del dato y límites
+## Data quality and limits
 
-- OTTO publica IDs de artículos anónimos, sin nombre, precio ni categoría. Su archivo de entrenamiento tiene **216.716.096** eventos: **194.720.954** clics, **16.896.191** carritos y **5.098.951** pedidos. El archivo de clase se valida por SHA-256 y por estos recuentos.
-- REES46 publica siete meses de eventos de un marketplace sin identificar su país. Sus vistas de producto **no son clics OTTO**. El manifiesto local conserva el tamaño del archivo y los recuentos por mes.
-- La tabla de mil millones **es una prueba de estrés derivada**, no un conjunto de observaciones nuevas; se muestran siempre las filas originales y derivadas por separado.
-- `uniqCombined64` estima usuarios/sesiones distintos; los recuentos de filas son exactos. La razón entre número de vistas y compras no es una tasa de conversión de personas sin definir ventana, sesión y atribución.
-- La reproducción de OTTO muestra ingesta en tiempo real, pero los sucesos ocurrieron en el pasado. Los clics de los botones del dashboard son las únicas acciones nuevas originadas en la demo.
+- OTTO publishes anonymous item IDs, without name, price or category. Its training file has **216,716,096** events: **194,720,954** clicks, **16,896,191** carts and **5,098,951** orders. The classroom file is validated by SHA-256 and by these counts.
+- REES46 publishes seven months of events from a marketplace without identifying its country. Its product views **are not OTTO clicks**. The local manifest keeps the file size and the counts per month.
+- The billion-row table **is a derived stress test**, not a set of new observations; original and derived rows are always shown separately.
+- `uniqCombined64` estimates distinct users/sessions; row counts are exact. The ratio between views and purchases is not a conversion rate of people unless window, session and attribution are defined.
+- The OTTO replay shows real-time ingestion, but the events happened in the past. Clicks on the dashboard buttons are the only new actions originating in the demo.
 
-## Comparación con una base transaccional
+## Comparison with a transactional database
 
-| Necesidad | Elección razonable |
+| Need | Reasonable choice |
 |---|---|
-| Guardar pedidos, cobros y cuentas que cambian individualmente | Sistema transaccional como PostgreSQL |
-| Explorar años de eventos y agrupar cientos de millones de filas | ClickHouse |
-| Mostrar métricas frecuentes en un dashboard | ClickHouse con vista materializada/rollup |
-| Buscar o modificar una fila individual como operación principal | PostgreSQL u otro motor orientado a transacciones |
+| Storing orders, payments and accounts that change individually | A transactional system such as PostgreSQL |
+| Exploring years of events and grouping hundreds of millions of rows | ClickHouse |
+| Showing frequent metrics on a dashboard | ClickHouse with a materialized view/rollup |
+| Looking up or modifying an individual row as the main operation | PostgreSQL or another transaction-oriented engine |
 
-Fuentes técnicas: [MergeTree](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree), [materialized views](https://clickhouse.com/docs/materialized-views), [horizontal scaling](https://clickhouse.com/docs/architecture/horizontal-scaling), [HTTP](https://clickhouse.com/docs/interfaces/http). Datos: [OTTO](https://github.com/otto-de/recsys-dataset) y [REES46](https://data.rees46.com/).
+Technical sources: [MergeTree](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree), [materialized views](https://clickhouse.com/docs/materialized-views), [horizontal scaling](https://clickhouse.com/docs/architecture/horizontal-scaling), [HTTP](https://clickhouse.com/docs/interfaces/http). Data: [OTTO](https://github.com/otto-de/recsys-dataset) and [REES46](https://data.rees46.com/).

@@ -1,39 +1,39 @@
-# Teoría del curso aplicada al proyecto
+# Course theory applied to the project
 
-Cada decisión técnica de Delivery Atlas y el concepto del temario que la justifica. Actualizado el 19/10/2026 para la infraestructura actual: `compose.yaml` con el perfil `atlas`, `atlas/` y `sql/atlas*.sql`.
+Each technical decision in Delivery Atlas and the course concept that justifies it. Updated on 19 October 2026 for the current infrastructure: `compose.yaml` with the `atlas` profile, `atlas/` and `sql/atlas*.sql`.
 
-| Concepto | Decisión | Dónde está |
+| Concept | Decision | Where |
 |---|---|---|
-| **Monolito o microservicios** | Un solo proceso Python hace de API HTTP, cola y publicador. Es fácil de arrancar y depurar, pero no escala horizontalmente: no se pueden ejecutar dos APIs sobre la misma cola | `atlas/server.py` |
-| **ACID frente a BASE** | La cola usa SQLite con transacciones y `synchronous=FULL`: un evento aceptado no se pierde aunque ClickHouse esté caído. ClickHouse guarda la analítica y no tiene transacciones entre tablas. Un pedido de la miniapp escribe en tres tablas en INSERT separados; si uno falla, se reenvía el lote completo | `atlas/store.py`, `atlas/clickhouse.py` |
-| **CAP / PACELC** | Con un nodo no hay réplicas que puedan quedar separadas, pero tampoco alta disponibilidad. Si ClickHouse cae, la API sigue aceptando eventos en la cola (202) y los publica al volver: la ingesta sigue disponible y las lecturas se atrasan. Con réplicas (`ReplicatedMergeTree`), la replicación es asíncrona y el sistema se comportaría como PA/EL; `insert_quorum` lo acercaría a PC/EC a cambio de latencia | Defensa oral, [FUNDAMENTOS.md](FUNDAMENTOS.md) |
-| **Idempotencia** | El `event_id` lo fija quien envía el evento. La cola guarda una huella SHA-256 del contenido: el mismo ID con el mismo contenido responde 200 sin duplicar, y con otro contenido responde 409. En ClickHouse, `ReplacingMergeTree(ingested_at)` elimina copias al fusionar partes y los agregados cuentan IDs únicos (`uniqExactState`), así que un reintento no suma dos veces | `atlas/store.py`, `sql/atlas.sql` |
-| **Colas o flujos** | Cola duradera local (patrón *outbox*) con un único publicador que envía lotes de hasta 5000 eventos. No es Kafka: hay un solo consumidor, sin offsets ni varios suscriptores. Kafka sería la evolución si otros sistemas necesitaran leer los mismos eventos | `atlas/store.py`, `atlas/server.py` |
-| **Tolerancia a fallos** | 202 significa «recibido de forma duradera». Si falla la publicación, los eventos siguen pendientes y se reintenta cada 2 segundos. Con la cola llena (200000 pendientes por defecto), la API responde 503 para que el cliente reintente más tarde. Las lecturas reintentan si el nodo se queda sin memoria; las escrituras no se repiten ahí | `atlas/server.py`, `atlas/clickhouse.py`, [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md) |
-| **Modelar según los accesos** | El `ORDER BY` de cada tabla empieza por las columnas que filtra el panel: `(source_kind, event_date, city_id, event_type, …)` en la navegación y `(simulation_run_id, city_id, courier_id, event_time, …)` en las posiciones GPS | `sql/atlas.sql`, `sql/atlas_operations.sql` |
-| **Particionado ≠ sharding** | `PARTITION BY toYYYYMM(...)` organiza los datos por mes dentro de un servidor. El sharding los repartiría entre nodos con tablas `Distributed`; es opcional y no está montado | `sql/atlas.sql`, `sql/atlas_operations.sql` |
-| **Replicación** | Se explica con `ReplicatedMergeTree` y ClickHouse Keeper. Montar varios nodos es opcional | Defensa oral, [FUNDAMENTOS.md](FUNDAMENTOS.md) |
-| **Vistas materializadas** | Calculan al insertar lo que el panel consulta a menudo: el último estado de cada repartidor, pedido y cliente (`argMaxState`) y los recuentos diarios por IDs únicos. El panel no recorre todo el histórico en cada refresco | `sql/atlas.sql`, `sql/atlas_operations.sql`, `sql/atlas_agents.sql` |
-| **Observabilidad** | `GET /api/status` informa de eventos pendientes y publicados, errores, conflictos, rechazos, fase del publicador, tamaño del último lote y su duración. El panel enseña la antigüedad de los datos y los errores | `atlas/server.py`, `web/atlas-dashboard.js` |
-| **Seguridad** | Puertos publicados solo en `127.0.0.1`. Las credenciales son de demostración y están en `compose.yaml`; no hay usuarios separados para escribir y leer, y la API corre como root en una imagen `python:3.12-slim`. Para compartir el panel se usa una pasarela de solo lectura que no expone el SQL | `compose.yaml`, `Dockerfile.atlas`, [COMPARTIR-VERCEL.md](COMPARTIR-VERCEL.md) |
-| **Almacenamiento** | ClickHouse actúa como almacén analítico con esquema al escribir: tipos estrictos, `Enum`, `LowCardinality` y restricciones `CHECK` sobre la versión y el tipo de evento. Los ficheros de los datasets son entradas locales, no un data lake | `sql/atlas.sql` |
-| **Docker Compose** | Healthchecks con `depends_on: service_healthy`, volúmenes con nombre para ClickHouse y la cola, perfiles `atlas` y `ai`, versión de ClickHouse fijada (25.8) y límites de memoria y CPU para Ollama | `compose.yaml` |
+| **Monolith or microservices** | A single Python process acts as HTTP API, queue and publisher. It is easy to start and debug, but it does not scale horizontally: two APIs cannot run over the same queue | `atlas/server.py` |
+| **ACID vs BASE** | The queue uses SQLite with transactions and `synchronous=FULL`: an accepted event is not lost even if ClickHouse is down. ClickHouse stores the analytics and has no transactions across tables. A mini-app order writes to three tables in separate INSERTs; if one fails, the whole batch is resent | `atlas/store.py`, `atlas/clickhouse.py` |
+| **CAP / PACELC** | With one node there are no replicas that can be split apart, but there is no high availability either. If ClickHouse goes down, the API keeps accepting events into the queue (202) and publishes them when it comes back: ingestion stays available and reads fall behind. With replicas (`ReplicatedMergeTree`), replication is asynchronous and the system would behave as PA/EL; `insert_quorum` would move it towards PC/EC at the cost of latency | Oral defence, [FUNDAMENTOS.md](FUNDAMENTOS.md) |
+| **Idempotency** | The `event_id` is set by whoever sends the event. The queue stores a SHA-256 fingerprint of the content: the same ID with the same content returns 200 without duplicating, and with different content returns 409. In ClickHouse, `ReplacingMergeTree(ingested_at)` removes copies when parts merge and the aggregates count unique IDs (`uniqExactState`), so a retry is never counted twice | `atlas/store.py`, `sql/atlas.sql` |
+| **Queues or streams** | Durable local queue (*outbox* pattern) with a single publisher that sends batches of up to 5000 events. It is not Kafka: there is one consumer, no offsets and no multiple subscribers. Kafka would be the next step if other systems needed to read the same events | `atlas/store.py`, `atlas/server.py` |
+| **Fault tolerance** | 202 means "durably received". If publishing fails, the events stay pending and are retried every 2 seconds. When the queue is full (200000 pending by default), the API returns 503 so the client retries later. Reads are retried if the node runs out of memory; writes are not repeated there | `atlas/server.py`, `atlas/clickhouse.py`, [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md) |
+| **Modelling for access patterns** | Each table's `ORDER BY` starts with the columns the dashboard filters on: `(source_kind, event_date, city_id, event_type, …)` for browsing and `(simulation_run_id, city_id, courier_id, event_time, …)` for GPS positions | `sql/atlas.sql`, `sql/atlas_operations.sql` |
+| **Partitioning ≠ sharding** | `PARTITION BY toYYYYMM(...)` organises data by month within one server. Sharding would spread it across nodes with `Distributed` tables; it is optional and not set up | `sql/atlas.sql`, `sql/atlas_operations.sql` |
+| **Replication** | Explained with `ReplicatedMergeTree` and ClickHouse Keeper. Running several nodes is optional | Oral defence, [FUNDAMENTOS.md](FUNDAMENTOS.md) |
+| **Materialized views** | They compute at insert time what the dashboard queries often: the latest state of each courier, order and customer (`argMaxState`) and daily counts by unique IDs. The dashboard does not scan the whole history on every refresh | `sql/atlas.sql`, `sql/atlas_operations.sql`, `sql/atlas_agents.sql` |
+| **Observability** | `GET /api/status` reports pending and published events, errors, conflicts, rejections, publisher phase, last batch size and its duration. The dashboard shows data age and errors | `atlas/server.py`, `web/atlas-dashboard.js` |
+| **Security** | Ports are published only on `127.0.0.1`. Credentials are demo values in `compose.yaml`; there are no separate users for writing and reading, and the API runs as root in a `python:3.12-slim` image. Sharing the dashboard goes through a read-only gateway that does not expose SQL | `compose.yaml`, `Dockerfile.atlas`, [COMPARTIR-VERCEL.md](COMPARTIR-VERCEL.md) |
+| **Storage** | ClickHouse acts as an analytical store with schema on write: strict types, `Enum`, `LowCardinality` and `CHECK` constraints on the version and event type. The dataset files are local inputs, not a data lake | `sql/atlas.sql` |
+| **Docker Compose** | Healthchecks with `depends_on: service_healthy`, named volumes for ClickHouse and the queue, `atlas` and `ai` profiles, pinned ClickHouse version (25.8) and memory and CPU limits for Ollama | `compose.yaml` |
 
-## Ventajas y desventajas de ClickHouse aquí
+## Advantages and disadvantages of ClickHouse here
 
-**Ventajas:**
-- Lee solo las columnas que necesita cada consulta.
-- Las vistas materializadas mantienen el último estado y los recuentos mientras entran datos.
-- Los tipos `LowCardinality` y `Enum` comprimen bien columnas muy repetidas, como ciudad, tipo de evento o procedencia.
-- Inserta lotes de miles de filas de una vez.
-- Usa SQL, que el equipo ya conoce.
+**Advantages:**
+- It reads only the columns each query needs.
+- Materialized views keep the latest state and the counts up to date while data arrives.
+- `LowCardinality` and `Enum` types compress highly repeated columns well, such as city, event type or source.
+- It inserts batches of thousands of rows at once.
+- It uses SQL, which the team already knows.
 
-**Desventajas:**
-- No hay transacciones entre tablas.
-- La eliminación de duplicados es eventual: para contar exacto hay que usar `FINAL` o agregados por IDs.
-- `UPDATE` y `DELETE` son mutaciones caras, y las vistas materializadas no recalculan lo borrado.
-- Los INSERT pequeños penalizan; por eso el publicador agrupa en lotes.
-- En la prueba de un millón de eventos, el agregado no fue más rápido que el detalle (0,703 s frente a 0,498 s; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md)).
-- Con un solo nodo no hay alta disponibilidad.
+**Disadvantages:**
+- There are no transactions across tables.
+- Deduplication is eventual: exact counts need `FINAL` or aggregates by ID.
+- `UPDATE` and `DELETE` are expensive mutations, and materialized views do not recompute deleted data.
+- Small INSERTs are penalised; that is why the publisher groups events into batches.
+- In the one-million-event test, the aggregate was not faster than the detail table (0.703 s vs 0.498 s; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md)).
+- With a single node there is no high availability.
 
-La versión anterior del repositorio, con Flask y Grafana (`app/`, `docker-compose.yml`), tomaba otras decisiones, como usuarios con permisos mínimos para escribir y leer. Está en el historial de git de este documento.
+The previous version of the repository, with Flask and Grafana (`app/`, `docker-compose.yml`), made other decisions, such as users with minimal permissions for writing and reading. It is in this document's git history.

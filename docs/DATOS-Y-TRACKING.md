@@ -1,103 +1,103 @@
-# Delivery Atlas: datos conservados y seguimiento en directo
+# Delivery Atlas: kept data and live tracking
 
-Actualización: 7 de octubre de 2026. Decisión de Jere: continuar la implementación con Rayo; repartir trabajo cuando los compañeros se incorporen. Primera demo: **Madrid, repartidores simulados y posiciones cada dos segundos**, confirmado por Jere.
+Update: 7 October 2026. Jere's decision: continue the implementation with Rayo; split the work when the teammates join. First demo: **Madrid, simulated couriers and positions every two seconds**, confirmed by Jere.
 
-## 1. Qué estamos construyendo ahora
+## 1. What we are building now
 
-Un dashboard que combina navegación, pedidos simulados, posiciones de repartidores, métricas de cola e inventario de fuentes. Los movimientos aparecen después de publicarse en ClickHouse. No se animan posiciones inventadas solamente en el navegador.
+A dashboard that combines browsing, simulated orders, courier positions, queue metrics and an inventory of sources. Movements appear after being published to ClickHouse. Positions invented only in the browser are not animated.
 
-El plano es una proyección local de latitud/longitud en el área de Madrid, sin mapa de calles. La línea azul representa posiciones recibidas de ese pedido; no calcula una ruta óptima ni comprueba calles transitables. Coordenadas, velocidad y precisión GPS son sintéticas. La API y el panel consultan con frecuencia de dos segundos, **pero esa frecuencia no es una garantía de demora de dos segundos**.
+The plane is a local projection of latitude/longitude in the Madrid area, without a street map. The blue line represents positions received for that order; it does not compute an optimal route or check that streets are passable. Coordinates, speed and GPS accuracy are synthetic. The API and the dashboard query every two seconds, **but that frequency is not a guarantee of a two-second delay**.
 
-## 2. Inventario: qué conservar y para qué
+## 2. Inventory: what to keep and why
 
-Se inspeccionaron las tablas y columnas de la instancia activa, no solo los archivos de propuesta. [auditoria-esquemas.json](auditoria-esquemas.json) recoge el inventario anterior a esta ampliación. No se borraron las fuentes.
+The tables and columns of the running instance were inspected, not just the proposal files. [auditoria-esquemas.json](auditoria-esquemas.json) records the inventory before this extension. No sources were deleted.
 
-| Fuente / tabla | Filas observadas antes de ampliar | Campos que conservamos | Uso adecuado |
+| Source / table | Rows observed before extending | Fields we keep | Appropriate use |
 |---|---:|---|---|
-| OTTO `otto_archive` | 216.716.096 | session_id, article_id, event_time, event_type, event_position | Navegación real de comercio electrónico y benchmarks |
-| REES46 `rees46_events` | 411.709.736 | fecha, acción, product_id, categoría, marca, precio, user_id, user_session | Análisis histórico de vistas/carritos/compras |
-| Ele.me `eleme_samples` | 2.170.299 | source_id/file/row, clicked, user/shop/item, ciudad/distrito/categoría, hora y meal_period, raw_features | Muestras de recomendación, no sesiones completas |
-| Glovo `glovo_products` | 2.887.444 | source_row, country/city, store_name, product_name, collection_section, descripción y campos originales | Catálogo; España tiene 415.137 productos en nuestra carga |
-| TRD / Meituan `orders` | 1.068.495 | order_id, user_id, restaurant_id, area_id, price_band, ordered_at, periodo y fecha | Pedidos históricos; price_band no es un importe exacto |
-| TRD `clicks` / `click_summary` | 4.021.488 / 517.353 | fecha, pedido, posición, restaurant_id; conteos derivados | Secuencia registrada de restaurantes, no hora GPS por clic |
-| TRD `restaurants` / `foods` | 29.072 / 179.778 | ID, categoría, área/score; precio/categoría del producto | Dimensiones del mismo dataset, no negocios españoles |
-| TRD `order_items` | 3.445.180 | fecha, order_id, food_id | Detalle de pedidos del mismo origen |
-| `otto_replay` | 1.200.000 | evento original + ingested_at | Reproducción histórica; no usuarios nuevos |
-| `otto_scale_benchmark` | 1.083.580.480 | scenario y campos derivados OTTO | Estrés, sin observaciones nuevas |
-| Atlas `app_events` | 1.000.003 filas físicas en el inventario | contrato v1 completo, ID, sesión, ambas horas, acción, ciudad y procedencia | Nuestra navegación manual/sintética; separar por origen |
+| OTTO `otto_archive` | 216,716,096 | session_id, article_id, event_time, event_type, event_position | Real e-commerce browsing and benchmarks |
+| REES46 `rees46_events` | 411,709,736 | date, action, product_id, category, brand, price, user_id, user_session | Historical analysis of views/carts/purchases |
+| Ele.me `eleme_samples` | 2,170,299 | source_id/file/row, clicked, user/shop/item, city/district/category, hour and meal_period, raw_features | Recommendation samples, not complete sessions |
+| Glovo `glovo_products` | 2,887,444 | source_row, country/city, store_name, product_name, collection_section, description and original fields | Catalog; Spain has 415,137 products in our load |
+| TRD / Meituan `orders` | 1,068,495 | order_id, user_id, restaurant_id, area_id, price_band, ordered_at, period and date | Historical orders; price_band is not an exact amount |
+| TRD `clicks` / `click_summary` | 4,021,488 / 517,353 | date, order, position, restaurant_id; derived counts | Recorded sequence of restaurants, not a GPS time per click |
+| TRD `restaurants` / `foods` | 29,072 / 179,778 | ID, category, area/score; product price/category | Dimensions of the same dataset, not Spanish businesses |
+| TRD `order_items` | 3,445,180 | date, order_id, food_id | Order detail from the same origin |
+| `otto_replay` | 1,200,000 | original event + ingested_at | Historical replay; not new users |
+| `otto_scale_benchmark` | 1,083,580,480 | scenario and derived OTTO fields | Stress test, no new observations |
+| Atlas `app_events` | 1,000,003 physical rows in the inventory | full v1 contract, ID, session, both times, action, city and provenance | Our manual/synthetic browsing; separate by origin |
 
-Las tablas pequeñas de prueba, staging y agregados se conservan también. Una fila de un agregado no representa un evento. Las cifras del inventario físico pueden cambiar durante fusiones; las pruebas lógicas usan `FINAL` o IDs únicos.
+The small test, staging and aggregate tables are kept too. A row of an aggregate does not represent an event. The physical inventory figures may change during merges; the logical tests use `FINAL` or unique IDs.
 
-Los primeros documentos mencionan Criteo, MT-LIFT y un censo de Madrid. **No hay tablas de esas fuentes en la instancia activa inspeccionada.** Los archivos de aquellas propuestas permanecen en el repositorio como contexto; no se anuncian como fuentes disponibles del nuevo dashboard. El esquema TRD usado está en `sql/schema.sql`; su ETL enlaza el origen en `scripts/prepare.py`.
+The first documents mention Criteo, MT-LIFT and a Madrid census. **There are no tables from those sources in the running instance that was inspected.** The files of those proposals remain in the repository as context; they are not announced as available sources for the new dashboard. The TRD schema used is in `sql/schema.sql`; its ETL links the origin in `scripts/prepare.py`.
 
-## 3. No unir poblaciones que no comparten IDs
+## 3. Do not join populations that share no IDs
 
-OTTO no conoce los productos de Glovo; Ele.me no identifica nuestros negocios ficticios en España. Dentro de TRD sí se pueden unir pedidos, productos y clics por sus claves y fechas. Entre datasets no existe una unión fiable que convierta todo en pedidos de una misma app.
+OTTO does not know Glovo's products; Ele.me does not identify our fictional businesses in Spain. Within TRD, orders, products and clicks can be joined by their keys and dates. Across datasets there is no reliable join that turns everything into orders from a single app.
 
-Por eso se conservan dos bases lógicas en el mismo nodo: **delivery** (laboratorio histórico) y **delivery_atlas** (modelo propio). No son dos servidores. Los paneles antiguos siguen usando el puerto 8000; Atlas usa 8001.
+That is why two logical databases are kept on the same node: **delivery** (historical lab) and **delivery_atlas** (our own model). They are not two servers. The old dashboards still use port 8000; Atlas uses 8001.
 
-## 4. Qué columnas y estructuras reutilizamos
+## 4. Which columns and structures we reuse
 
-### Navegación: contrato v1 conservado
+### Browsing: v1 contract kept
 
-`app_events` mantiene schema_version, event_id, session_id, event_time, event_date, ingested_at, event_type, section, city_id, user_id, restaurant_id, product_id, source, source_kind, source_record_id y simulation_run_id. Las referencias opcionales desconocidas siguen siendo null.
+`app_events` keeps schema_version, event_id, session_id, event_time, event_date, ingested_at, event_type, section, city_id, user_id, restaurant_id, product_id, source, source_kind, source_record_id and simulation_run_id. Unknown optional references are still null.
 
-Su agregado exacto y la deduplicación siguen funcionando. El generador grande original y las acciones manuales siguen admitidos. No añadimos posiciones a esa tabla: una posición GPS no es un clic.
+Its exact aggregate and deduplication keep working. The original large generator and the manual actions are still accepted. We do not add positions to that table: a GPS position is not a click.
 
-### Catálogo de demo: campos ficticios explícitos
+### Demo catalog: explicitly fictional fields
 
-- **demo_restaurants:** restaurant_id, name, city_id, latitude, longitude, location_kind, source_kind, version. Doce establecimientos ficticios; ubicaciones e identidad sintéticas.
-- **demo_products:** product_id, restaurant_id, product_name, price_minor, currency, price_kind, name_kind, source_table, source_row, version. Treinta y seis productos.
-- Si Glovo Madrid está disponible al sembrar la demo, se copia el nombre de una muestra y su fila de origen. Si no, se usan nombres ficticios. **El precio siempre es ficticio** y no se atribuye a Glovo. Asignar el producto a un negocio ficticio tampoco demuestra que lo venda ese negocio real.
-- Se siembra al primer arranque. Una actualización futura del catálogo debe ser una operación explícita con validación; reiniciar no debe cambiar lo que presentábamos antes.
+- **demo_restaurants:** restaurant_id, name, city_id, latitude, longitude, location_kind, source_kind, version. Twelve fictional establishments; synthetic locations and identity.
+- **demo_products:** product_id, restaurant_id, product_name, price_minor, currency, price_kind, name_kind, source_table, source_row, version. Thirty-six products.
+- If Glovo Madrid is available when seeding the demo, the name of a sample and its source row are copied. Otherwise, fictional names are used. **The price is always fictional** and is not attributed to Glovo. Assigning the product to a fictional business does not prove that the real business sells it either.
+- It is seeded on first start. A future catalog update must be an explicit, validated operation; restarting must not change what we were presenting before.
 
-### Nuevos hechos operativos
+### New operational facts
 
-| Tabla | Una fila es | Campos principales |
+| Table | One row is | Main fields |
 |---|---|---|
-| **courier_positions** | Una posición sintética del repartidor | event_id, run, ambas horas, city, courier_id, order_id, latitude, longitude, speed_kmh, accuracy_m, source/kind |
-| **order_events** | Foto completa de un pedido en un estado | event_id/run/horas, order_id, courier_id, restaurant_id, status, amount_minor, currency, recogida/entrega lat/lon, order_created_at, promised_delivery_at, source/kind |
+| **courier_positions** | A synthetic courier position | event_id, run, both times, city, courier_id, order_id, latitude, longitude, speed_kmh, accuracy_m, source/kind |
+| **order_events** | A complete snapshot of an order in one status | event_id/run/times, order_id, courier_id, restaurant_id, status, amount_minor, currency, pickup/dropoff lat/lon, order_created_at, promised_delivery_at, source/kind |
 
-Las horas están en UTC. `amount_minor` son céntimos enteros, nunca un precio flotante. El panel los formatea en EUR. Estados: created, preparing, picked_up, en_route, delivered y cancelled. Los campos de GPS se validan por rango y finitud. La API actual solo admite operación `synthetic`; conectar un GPS real exige revisar contrato, procedencia y acceso, no quitar una etiqueta.
+Times are in UTC. `amount_minor` is integer cents, never a floating-point price. The dashboard formats it in EUR. Statuses: created, preparing, picked_up, en_route, delivered and cancelled. GPS fields are validated for range and finiteness. The current API only accepts `synthetic` operations; connecting a real GPS requires reviewing the contract, provenance and access, not removing a label.
 
-El modelo conserva IDs propios para relacionar pedidos y repartidores **dentro de una ejecución**. ClickHouse no impone claves foráneas; el simulador mantiene esas relaciones. La API de telemetría comprueba el formato, no es un motor transaccional de asignación de repartos.
+The model keeps its own IDs to relate orders and couriers **within a run**. ClickHouse does not enforce foreign keys; the simulator maintains those relationships. The telemetry API checks the format; it is not a transactional engine for assigning deliveries.
 
-## 5. Cómo se obtiene la última posición
+## 5. How the latest position is obtained
 
-`ReplacingMergeTree(ingested_at)` guarda el histórico de posiciones/estados. Las tablas `courier_latest_state` y `order_latest_state` usan `AggregatingMergeTree`; sus vistas materializadas calculan `argMaxState` y las vistas de lectura usan `argMaxMerge`.
+`ReplacingMergeTree(ingested_at)` keeps the history of positions/statuses. The `courier_latest_state` and `order_latest_state` tables use `AggregatingMergeTree`; their materialized views compute `argMaxState` and the read views use `argMaxMerge`.
 
-El valor de comparación es `(event_time,event_id)`: gana la hora de evento más reciente; si empatan, el UUID decide de forma determinista. No gana simplemente lo último que llegó al servidor. El estado completo se guarda en una tupla, para que latitud, longitud, pedido y hora procedan de la misma fila. Esto sigue el patrón documentado de [argMax](https://clickhouse.com/docs/reference/functions/aggregate-functions/argMax) y [AggregatingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree).
+The comparison value is `(event_time,event_id)`: the most recent event time wins; on a tie, the UUID decides deterministically. It is not simply whatever reached the server last. The complete state is stored in a tuple, so latitude, longitude, order and time come from the same row. This follows the documented pattern of [argMax](https://clickhouse.com/docs/reference/functions/aggregate-functions/argMax) and [AggregatingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree).
 
-Los grupos incluyen run, ciudad y repartidor/pedido para separar ejecuciones. El simulador detenido deja su histórico visible. Al reiniciar la API se recuerda el último run, pero **no se reinicia automáticamente la generación**.
+The groups include run, city and courier/order to keep runs separate. A stopped simulator leaves its history visible. When the API restarts, the last run is remembered, but **generation is not restarted automatically**.
 
-## 6. Dónde se ingesta cada cosa
+## 6. Where each thing is ingested
 
 ```text
-Fuentes públicas -> ETL existente -> delivery (tablas originales)
-Navegación propia -> POST /api/events -> cola -> app_events
-GPS simulado -> POST /api/operations, kind=courier_positions -> cola -> courier_positions
-Estados simulados -> POST /api/operations, kind=order_events -> cola -> order_events
-Simulador integrado -> misma validación y cola -> esas tres tablas
-Catálogo pequeño -> sembrado explícito al primer arranque -> demo_restaurants/products
+Public sources -> existing ETL -> delivery (original tables)
+Own browsing -> POST /api/events -> queue -> app_events
+Simulated GPS -> POST /api/operations, kind=courier_positions -> queue -> courier_positions
+Simulated statuses -> POST /api/operations, kind=order_events -> queue -> order_events
+Built-in simulator -> same validation and queue -> those three tables
+Small catalog -> explicit seeding on first start -> demo_restaurants/products
 ```
 
-`POST /api/operations` acepta `{"kind":"courier_positions","events":[...]}` o `order_events`. El ejemplo completo se obtiene del generador `atlas/simulation.py`. Máximo 5000 eventos o 5 MiB. ID y contenido se conservan al reintentar; 202 confirma la cola y 200 reconoce un reintento. `_stream` es metadato interno: no se envía desde un cliente.
+`POST /api/operations` accepts `{"kind":"courier_positions","events":[...]}` or `order_events`. The full example comes from the generator in `atlas/simulation.py`. Maximum 5000 events or 5 MiB. ID and content are kept when retrying; 202 confirms the queue and 200 recognizes a retry. `_stream` is internal metadata: it is not sent by a client.
 
-Si un lote mezcla tipos dentro de la cola, el publicador hace un INSERT por tabla. **No hay una transacción entre esos INSERTs.** Si falla después del primero, el lote queda pendiente y se vuelve a enviar. Puede haber copias físicas; las lecturas y agregados lógicos resuelven los reintentos para contenidos inmutables. Las lecturas de GPS y pedidos también son consultas separadas y pueden mostrar diferencias breves durante una publicación.
+If a batch mixes types within the queue, the publisher performs one INSERT per table. **There is no transaction across those INSERTs.** If it fails after the first one, the batch stays pending and is sent again. There may be physical copies; logical reads and aggregates resolve retries for immutable content. GPS and order reads are also separate queries and may show brief differences during a publish.
 
-La cola no es una base analítica ni una réplica. Sigue limitada a 200000 pendientes y conserva payloads publicados: hay que medir su crecimiento y diseñar limpieza/backup antes de producción. La telemetría aún no tiene TTL; no se borraron históricos automáticamente.
+The queue is neither an analytical database nor a replica. It is still limited to 200000 pending and keeps published payloads: its growth must be measured and cleanup/backup designed before production. Telemetry has no TTL yet; no history was deleted automatically.
 
-## 7. Qué enseña el dashboard y qué tiempo mide
+## 7. What the dashboard shows and what time it measures
 
-- Mapa: posiciones publicadas, seleccionables, con recorrido del pedido actual.
-- Pedidos: activos, entregados, cancelados, fuera del plazo ficticio e importe ficticio entregado. No hay ingresos comerciales reales.
-- GPS: recuento de IDs únicos por intervalos de cinco segundos, últimos dos minutos del run seleccionado.
-- Frescura: diferencia entre hora del evento y consulta. Si falla una consulta, se avisa y se conservan posiciones anteriores.
-- Hasta recibir en API: `ingested_at - event_time`, **no** el tiempo hasta publicación. No llamar a ese valor latencia total.
-- Navegación: recuentos de Madrid desde el agregado, con selector synthetic/demo_live y botón de búsqueda manual. Se identifica como todo el histórico Atlas. Esta sección consulta cada diez segundos para no hacer competir el agregado de un millón de IDs con el seguimiento; al cambiar procedencia se solicita de nuevo.
-- Inventario y muestra Glovo: metadatos de tablas y catálogo, separados de la operación sintética. El inventario no ejecuta un count completo de todos los datasets cada dos segundos.
+- Map: published positions, selectable, with the path of the current order.
+- Orders: active, delivered, cancelled, past the fictional deadline and fictional delivered amount. There is no real commercial revenue.
+- GPS: count of unique IDs in five-second intervals, last two minutes of the selected run.
+- Freshness: difference between event time and query time. If a query fails, a warning is shown and the previous positions are kept.
+- Until received by the API: `ingested_at - event_time`, **not** the time until publishing. Do not call that value total latency.
+- Browsing: Madrid counts from the aggregate, with a synthetic/demo_live selector and a manual search button. It is labelled as the whole Atlas history. This section queries every ten seconds so that the aggregate of a million IDs does not compete with tracking; changing the source requests it again.
+- Inventory and Glovo sample: table and catalog metadata, separate from the synthetic operations. The inventory does not run a full count of every dataset every two seconds.
 
-## 8. Arranque y demo
+## 8. Start and demo
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
@@ -105,29 +105,29 @@ python3 -m unittest discover -s tests -v
 python3 scripts/check_operations.py
 ```
 
-Abrir **http://127.0.0.1:8001/**. Pulsar Iniciar simulación. Elegir un repartidor, observar las coordenadas y el histórico, esperar un cambio de estado, registrar una búsqueda manual y cambiar procedencia a acciones manuales. Parar conserva los datos y detiene la generación. Cambiar flota requiere parar y comenzar un nuevo run.
+Open **http://127.0.0.1:8001/**. Click "Start customers and delivery". Choose a courier, watch the coordinates and the history, wait for a status change, record a manual search and switch the source to manual actions. Stopping keeps the data and stops generation. Changing the fleet requires stopping and starting a new run.
 
-Rutas de lectura: `/api/simulation`, `/api/operations?run_id=UUID`, `/api/track?run_id=UUID&courier_id=UUID`, `/api/demo-catalog`, `/api/catalog`, `/api/inventory`, `/api/summary`, `/api/status`. Control: `POST /api/simulation/start` con fleet/interval/seed, `POST /api/simulation/stop` con `{}`.
+Read routes: `/api/simulation`, `/api/operations?run_id=UUID`, `/api/track?run_id=UUID&courier_id=UUID`, `/api/demo-catalog`, `/api/catalog`, `/api/inventory`, `/api/summary`, `/api/status`. Control: `POST /api/simulation/start` with fleet/interval/seed, `POST /api/simulation/stop` with `{}`.
 
-Carga histórica GPS opcional:
+Optional historical GPS load:
 
 ```bash
 python3 scripts/operations.py --positions 100000 --fleet 12 --seed 42 --start 2026-10-06T10:00:00Z
 python3 scripts/atlas.py status
 ```
 
-Es una carga distinta de la flota que genera posiciones ahora. Repetir los parámetros conserva el run y los IDs. El informe de envío no prueba por sí solo publicación; comprobar run en ClickHouse. Los primeros pedidos de la flota empiezan en fases escalonadas y su historial inicial puede ser parcial. Un ciclo dura 160 s y puede cancelarse; los parámetros no están calibrados con reparto real. Las sesiones de navegación generadas son un escenario independiente con abandonos: no se relacionan con una compra real ni sirven para calcular conversión de esos pedidos.
+It is a load separate from the fleet that is generating positions now. Repeating the parameters keeps the run and the IDs. The send report alone does not prove publishing; check the run in ClickHouse. The fleet's first orders start in staggered phases and their initial history may be partial. A cycle lasts 160 s and can be cancelled; the parameters are not calibrated against real delivery. The generated browsing sessions are an independent scenario with abandonment: they are not related to a real purchase and cannot be used to compute the conversion of those orders.
 
-**Carga comprobada en este equipo:** 100000 posiciones y 5965 fotos de estado, ambas verificadas en ClickHouse por run ID. Envío de 105965 registros: 435,887 s, durante una ejecución concurrente de flota y consultas. No es un benchmark de capacidad de ClickHouse. [Evidencia de carga](evidencia-carga-gps.json). [Pruebas de reintentos y orden temporal](evidencia-tracking.json). Consultas para clase: `sql/atlas_tracking_consultas.sql`.
+**Load verified on this machine:** 100000 positions and 5965 status snapshots, both verified in ClickHouse by run ID. Sending 105965 records: 435.887 s, during a concurrent run of the fleet and queries. It is not a ClickHouse capacity benchmark. [Load evidence](evidencia-carga-gps.json). [Retry and time-order tests](evidencia-tracking.json). Queries for class: `sql/atlas_tracking_consultas.sql`.
 
-En una muestra anterior a los ajustes, durante carga concurrente, `/api/operations` tardó 8,36 s y devolvió posiciones de 52,6 s de antigüedad. Se separó la lectura de navegación del seguimiento, se evitó repetir el agregado para calcular totales y se limitó el paralelismo a cuatro hilos. No hay todavía una prueba sostenida que garantice una latencia bajo carga. Si el publicador se atrasa, mostrarlo forma parte de la demo; la cola no convierte el retraso en tiempo real instantáneo.
+In a sample taken before the adjustments, under concurrent load, `/api/operations` took 8.36 s and returned positions 52.6 s old. Browsing reads were separated from tracking, repeating the aggregate to compute totals was avoided and parallelism was limited to four threads. There is still no sustained test that guarantees latency under load. If the publisher falls behind, showing it is part of the demo; the queue does not turn the delay into instant real time.
 
-La API mantiene ahora una conexión SQLite compartida y protegida por un bloqueo, con WAL y `synchronous=FULL`; evita reabrir la conexión y perder su caché en cada lote. Tras estos ajustes, **tres muestras locales sin carga histórica concurrente** devolvieron los 12 repartidores con antigüedad máxima de 1,761–2,279 s al consultar y consultas de 0,177–0,855 s. Son observaciones puntuales, no una garantía de rendimiento sostenido ni una prueba aislada del efecto de cada ajuste. [Evidencia de frescura](evidencia-frescura.json).
+The API now keeps a shared SQLite connection protected by a lock, with WAL and `synchronous=FULL`; it avoids reopening the connection and losing its cache on every batch. After these adjustments, **three local samples without concurrent historical load** returned the 12 couriers with a maximum data age of 1.761–2.279 s at query time and queries of 0.177–0.855 s. These are point observations, not a guarantee of sustained performance or an isolated test of the effect of each adjustment. [Freshness evidence](evidencia-frescura.json).
 
-## 9. Qué base de datos usar y qué ampliar después
+## 9. Which database to use and what to extend later
 
-**Ahora:** ClickHouse para eventos, históricos y lecturas agregadas; SQLite como transporte persistente local. Encaja con la asignatura y con [analítica en tiempo real](https://clickhouse.com/use-cases/real-time-analytics). No necesitamos otro motor para demostrar este flujo.
+**Now:** ClickHouse for events, history and aggregated reads; SQLite as local persistent transport. It fits the course and [real-time analytics](https://clickhouse.com/use-cases/real-time-analytics). We do not need another engine to demonstrate this flow.
 
-**Si se convierte en una app de reparto real:** una base transaccional para aceptar/cancelar/asignar pedidos con reglas y transacciones, y un sistema de transporte distribuido si crece la ingesta. Es una ampliación arquitectónica, no algo instalado hoy. No prometemos asignación operativa fiable, alta disponibilidad ni precisión GPS real por tener un mapa.
+**If it became a real delivery app:** a transactional database to accept/cancel/assign orders with rules and transactions, and a distributed transport system if ingestion grows. It is an architectural extension, not something installed today. We do not promise reliable operational assignment, high availability or real GPS accuracy just because there is a map.
 
-Siguientes pasos con mayor valor: miniapp comercial conectada, relación explícita entre su checkout y un pedido simulado, medición sostenida de demora bajo carga, limpieza/backup de cola e historial, y reproducción en otra máquina. Un segundo nodo es un experimento posterior; la evidencia actual corresponde a uno.
+Next steps with the most value: connected commercial mini-app, an explicit link between its checkout and a simulated order, sustained measurement of delay under load, cleanup/backup of the queue and history, and reproduction on another machine. A second node is a later experiment; the current evidence corresponds to one.

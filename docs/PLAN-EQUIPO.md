@@ -1,74 +1,74 @@
-# Delivery Atlas: plan de trabajo del equipo
+# Delivery Atlas: team work plan
 
-Fecha: 7 de octubre de 2026. Equipo: Jere, Anuar y Echenique.
+Date: 7 October 2026. Team: Jere, Anuar and Echenique.
 
-**Cambio posterior de alcance:** Jere indicó continuar de momento con Rayo y repartir cuando los compañeros se incorporen. El reparto de abajo es una propuesta para ese momento, no trabajo que estemos esperando. Ya se implementa el dashboard operativo y tracking sintético de Madrid. Estado vigente: [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md). La guía PDF anterior describe la primera entrega de infraestructura.
+**Later change of scope:** Jere decided to continue with Rayo for now and split the work when the teammates join. The split below is a proposal for that moment, not work we are waiting on. The operations dashboard and synthetic Madrid tracking are already being implemented. Current status: [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md). The earlier PDF guide describes the first infrastructure delivery.
 
-## Qué estamos construyendo
+## What we are building
 
-Una plataforma ficticia de comida a domicilio para demostrar cómo ClickHouse recibe y analiza muchos eventos. Una acción en la aplicación produce un registro; la API Python lo valida, lo guarda y permite consultarlo desde un dashboard. No operamos repartos ni cobros reales.
+A fictional food-delivery platform to demonstrate how ClickHouse receives and analyses many events. An action in the application produces a record; the Python API validates it, stores it and makes it queryable from a dashboard. We do not operate real deliveries or payments.
 
-Ya existe un laboratorio con OTTO, REES46, Ele.me y el catálogo Glovo, sus paneles y mediciones. Esas fuentes conservan sus tablas y significados. La aplicación propia tendrá su base `delivery_atlas`, con acciones manuales y simuladas identificadas.
+There is already a lab with OTTO, REES46, Ele.me and the Glovo catalog, with its dashboards and measurements. Those sources keep their tables and meanings. Our own application will have its `delivery_atlas` database, with manual and simulated actions labelled as such.
 
-## Reparto acordado para empezar
+## Initial agreed split
 
-| Persona | Responsabilidad principal | Entrega comprobable |
+| Person | Main responsibility | Verifiable deliverable |
 |---|---|---|
-| **Jere, con Rayo** | ClickHouse, SQL, API de ingesta, generador y pruebas de reintentos | Una petición llega a ClickHouse, repetirla no aumenta el recuento lógico y el entorno arranca con Compose |
-| **Anuar** | Miniapp y registro de acciones | Un recorrido ciudad, restaurante, producto, carrito y pedido simulado emite los eventos correctos |
-| **Echenique** | Dashboard, comprobación independiente y guía de demo | El dashboard consulta la API, filtra por origen/ciudad/fecha y otra máquina reproduce la ruta pequeña |
+| **Jere, with Rayo** | ClickHouse, SQL, ingestion API, generator and retry tests | A request reaches ClickHouse, repeating it does not increase the logical count, and the environment starts with Compose |
+| **Anuar** | Mini-app and action logging | A path through city, restaurant, product, cart and simulated order emits the right events |
+| **Echenique** | Dashboard, independent check and demo guide | The dashboard queries the API, filters by source/city/date, and another machine reproduces the small path |
 
-## Jere: base e ingesta
+## Jere: database and ingestion
 
-1. Implementar `sql/atlas.sql`: eventos, agregados y consultas de lectura.
-2. Implementar `atlas/`: contrato, registro duradero de recepción, publicación por lotes y endpoints.
-3. Empaquetar la API en `Dockerfile.atlas` y el perfil `atlas` de `compose.yaml`.
-4. Crear `scripts/atlas.py` para generar carga reproducible y `scripts/check_atlas.py` para verificar la ruta completa.
-5. Guardar mediciones propias de la nueva base. Los benchmarks antiguos no describen su rendimiento.
+1. Implement `sql/atlas.sql`: events, aggregates and read queries.
+2. Implement `atlas/`: contract, durable receipt log, batch publishing and endpoints.
+3. Package the API in `Dockerfile.atlas` and the `atlas` profile of `compose.yaml`.
+4. Create `scripts/atlas.py` to generate a reproducible load and `scripts/check_atlas.py` to verify the full path.
+5. Save our own measurements of the new database. The old benchmarks do not describe its performance.
 
-**Base implementada y comprobada el 7 de octubre.** Ya se validan eventos, se rechazan datos incorrectos, el mismo ID con contenido distinto da conflicto y un reintento mantiene el recuento lógico. Se cargó y verificó un millón de eventos sintéticos y se probó la recuperación de cola tras reiniciar servicios. [Resultados y condiciones](RESULTADOS-ATLAS.md).
+**Database implemented and verified on 7 October.** Events are validated, incorrect data is rejected, the same ID with different content returns a conflict and a retry keeps the logical count. One million synthetic events were loaded and verified, and queue recovery after restarting services was tested. [Results and conditions](RESULTADOS-ATLAS.md).
 
-Siguientes tareas de Jere: apoyar las dos interfaces, medir retraso y uso de disco, mejorar el generador con abandonos y optimizar el agregado exacto (todavía no supera al detalle en la medición local). Después documentar backup/restauración y valorar un segundo nodo como ampliación.
+Jere's next tasks: support the two interfaces, measure delay and disk usage, improve the generator with abandonment, and optimize the exact aggregate (it does not yet beat the detail table in the local measurement). Then document backup/restore and consider a second node as an extension.
 
-## Anuar: miniapp
+## Anuar: mini-app
 
-Trabajar en `web/delivery.html`, `web/delivery.js` y `web/delivery.css` (nuevos archivos). Coordinar con Jere el servicio de esos archivos desde la API.
+Work on `web/delivery.html`, `web/delivery.js` and `web/delivery.css` (new files). Coordinate with Jere on serving those files from the API.
 
-1. Empezar con un catálogo ficticio pequeño y estable, sin login ni pagos.
-2. Permitir seleccionar ciudad, buscar, abrir un restaurante y un producto, añadir al carrito y confirmar un pedido simulado.
-3. Crear un `session_id` al iniciar la sesión y un `event_id` antes de cada envío. Un reintento reutiliza el mismo evento completo.
-4. Enviar a `POST /api/events`. Usar `source=delivery-miniapp` y `source_kind=demo_live`. Son interacciones nuevas sobre un negocio ficticio.
-5. Mostrar un fallo de envío sin inventar que el evento se guardó. No registrar impresiones hasta definir cuándo un producto es visible.
+1. Start with a small, stable fictional catalog, with no login or payments.
+2. Allow selecting a city, searching, opening a restaurant and a product, adding to the cart and confirming a simulated order.
+3. Create a `session_id` when the session starts and an `event_id` before each send. A retry reuses the same complete event.
+4. Send to `POST /api/events`. Use `source=delivery-miniapp` and `source_kind=demo_live`. These are new interactions with a fictional business.
+5. Show a send failure without pretending the event was saved. Do not record impressions until it is defined when a product is visible.
 
-Terminado cuando: Echenique hace un recorrido y puede encontrar sus acciones y su sesión en la base, sin doble conteo al reintentar.
+Done when: Echenique goes through a path and can find his actions and his session in the database, with no double counting on retries.
 
-## Echenique: dashboard y reproducción
+## Echenique: dashboard and reproduction
 
-Trabajar en `web/atlas-dashboard.html`, `web/atlas-dashboard.js`, `web/atlas-dashboard.css`, `docs/DEMO-ATLAS.md` y `docs/PRUEBAS-EQUIPO.md` (nuevos archivos).
+Work on `web/atlas-dashboard.html`, `web/atlas-dashboard.js`, `web/atlas-dashboard.css`, `docs/DEMO-ATLAS.md` and `docs/PRUEBAS-EQUIPO.md` (new files).
 
-1. Consultar `GET /api/summary`, `GET /api/recent` y `GET /api/status`.
-2. Mostrar eventos por día, ciudad y acción; diferenciar `synthetic` y `demo_live`.
-3. Refrescar cada 2 segundos, indicar cuándo se obtuvo la última respuesta y mostrar los errores.
-4. Mostrar cola pendiente y eventos publicados. No llamar conversión a una división de pedidos entre clics.
-5. Seguir la instalación reducida en su ordenador, ejecutar las pruebas y registrar sistema, versión, comandos y resultados.
-6. Preparar una demo de ingesta, consulta y comparación entre eventos y agregado. Dejar CRUD en una tabla de ensayo.
+1. Query `GET /api/summary`, `GET /api/recent` and `GET /api/status`.
+2. Show events by day, city and action; distinguish `synthetic` from `demo_live`.
+3. Refresh every 2 seconds, show when the last response was received and display errors.
+4. Show the pending queue and published events. Do not call a division of orders by clicks "conversion".
+5. Follow the reduced installation on his computer, run the tests and record system, version, commands and results.
+6. Prepare a demo of ingestion, querying and comparison between events and the aggregate. Keep CRUD on a scratch table.
 
-Terminado cuando: el dashboard representa datos de ClickHouse, una acción aparece después de la publicación y la guía permite repetirlo sin los datasets grandes.
+Done when: the dashboard shows ClickHouse data, an action appears after publishing, and the guide makes it possible to repeat it without the large datasets.
 
-## Orden de integración
+## Integration order
 
-1. Jere fija el contrato y entrega una muestra, los endpoints y la ruta reducida.
-2. Anuar y Echenique trabajan en sus archivos con la API ya disponible.
-3. Echenique verifica el recorrido de Anuar y el reintento de Jere.
-4. Jere ejecuta una carga medida; los tres revisan sus condiciones y ensayan.
+1. Jere fixes the contract and delivers a sample, the endpoints and the reduced path.
+2. Anuar and Echenique work on their files with the API already available.
+3. Echenique checks Anuar's path and Jere's retry.
+4. Jere runs a measured load; the three of us review its conditions and rehearse.
 
-Usar ramas `codex/atlas-base`, `codex/atlas-miniapp` y `codex/atlas-dashboard`. Son nombres sugeridos; no se han creado ni enviado mensajes al equipo. Revisar cambios juntos antes de fusionar. Cada persona conserva sus archivos para evitar pisar el trabajo de otra.
+Use the branches `codex/atlas-base`, `codex/atlas-miniapp` and `codex/atlas-dashboard`. These are suggested names; they have not been created and no messages have been sent to the team. Review changes together before merging. Each person keeps to their own files to avoid overwriting someone else's work.
 
-## Acuerdo común
+## Common agreement
 
-- Histórico, simulación y acciones manuales se identifican por su procedencia.
-- Un catálogo no contiene clics. Las muestras de Ele.me no son una sesión completa.
-- El identificador del evento permanece igual en los reintentos.
-- Un nodo significa una instancia de ClickHouse. Un volumen conserva datos, pero no proporciona una réplica ni un backup.
-- No descargar cientos de millones de filas en los otros ordenadores para empezar: primero la ruta reducida.
-- Las cifras y garantías se presentan solo después de comprobarlas.
+- Historical, simulated and manual data are identified by their provenance.
+- A catalog contains no clicks. Ele.me samples are not a complete session.
+- The event identifier stays the same across retries.
+- A node means one ClickHouse instance. A volume keeps data, but it does not provide a replica or a backup.
+- Do not download hundreds of millions of rows on the other computers to get started: first the reduced path.
+- Figures and guarantees are presented only after they have been verified.

@@ -8,39 +8,39 @@ web
 
 ## Users
 
-Jere, Anuar y Echenique preparan un proyecto BD2; el profesor y otros estudiantes deben entenderlo y reproducir la demo. La implementación la continúa Rayo con Jere hasta que el equipo se incorpore.
+Jere, Anuar and Echenique are preparing a BD2 project; the professor and other students must understand it and reproduce the demo. The implementation is being continued by Rayo with Jere until the team joins.
 
 ## Product Purpose
 
-Delivery Atlas demuestra infraestructura analítica de una plataforma ficticia de comida a domicilio. Debe representar eventos masivos, explicar el esquema y enseñar ingesta y seguimiento durante la demo.
+Delivery Atlas demonstrates the analytics infrastructure of a fictional food-delivery platform. It must represent massive events, explain the schema and show ingestion and tracking during the demo.
 
 ## Operating Context
 
-Demo local en navegador y Docker Compose, integración Python/ClickHouse. El usuario confirmó Madrid y repartidores simulados con posiciones cada dos segundos el 7/10/2026. Conservamos los datasets públicos y los paneles históricos.
+Local demo in the browser and Docker Compose, Python/ClickHouse integration. The user confirmed Madrid and simulated couriers with positions every two seconds on 7 October 2026. We keep the public datasets and the historical dashboards.
 
 ## Capabilities and Constraints
 
-Un nodo ClickHouse 25.8, API Python de biblioteca estándar y cola SQLite persistente de transporte. El histórico y los eventos propios conservan procedencia. No hay GPS observado ni datos operativos en vivo de Uber Eats/Glovo. Las posiciones y pedidos son simulaciones; las rutas no siguen una red viaria real. No hay pagos ni reparto real.
+One ClickHouse 25.8 node, a standard-library Python API and a persistent SQLite transport queue. Historical data and our own events keep their provenance. There is no observed GPS and no live operational data from Uber Eats/Glovo. Positions and orders are simulations; routes do not follow a real road network. There are no payments and no real deliveries.
 
 ## Brand Commitments
 
-Nombre Delivery Atlas. Explicaciones en español; exposición de clase en inglés cuando se solicite. Respetar la apariencia existente de los paneles del laboratorio al extender la web.
+Name: Delivery Atlas. Documentation and interface in English, because the course is taught in English (decided on 19 October 2026). Respect the existing look of the lab dashboards when extending the website.
 
 ## Evidence on Hand
 
-docs/auditoria-esquemas.json contiene tablas y columnas inspeccionadas. docs/RESULTADOS-ATLAS.md recoge un millón de eventos simulados y pruebas de reintentos/recuperación. Las mediciones de OTTO no se atribuyen a Atlas. Glovo aporta catálogo; Ele.me muestras; Meituan pedidos y secuencias históricas. Ninguna de esas fuentes contiene nuestra flota GPS.
+docs/auditoria-esquemas.json contains the inspected tables and columns. docs/RESULTADOS-ATLAS.md records one million simulated events and retry/recovery tests. The OTTO measurements are not attributed to Atlas. Glovo provides a catalog; Ele.me, samples; Meituan, historical orders and sequences. None of those sources contains our GPS fleet.
 
 ## Product Principles
 
-- Separar histórico, simulación y acciones manuales.
-- Leer del almacén real: no mover repartidores en el navegador sin ingesta.
-- Mostrar retraso, errores y antigüedad de posición.
-- Hacer reproducible la ruta pequeña sin descargar los datasets masivos.
+- Keep history, simulation and manual actions separate.
+- Read from the real store: do not move couriers in the browser without ingestion.
+- Show delay, errors and position age.
+- Make the small path reproducible without downloading the massive datasets.
 
-## Customer Agent Extension — 14/10/2026
+## Customer Agent Extension — 14 October 2026
 
-Clientes ficticios usan Qwen3:0.6b en Ollama local para elegir acciones de catálogo. Python valida opciones y presupuestos; una compra enlaza customer_id, session_id, checkout_event_id y order_id con la cesta, estados y GPS. El dashboard lee las decisiones y compras publicadas en ClickHouse. Política local y flota anterior tienen etiquetas distintas. Evidencia: docs/evidencia-clientes.json y docs/AGENTES-CLIENTES.md.
+Fictional customers use Qwen3:0.6b on local Ollama to choose catalog actions. Python validates options and budgets; a purchase links customer_id, session_id, checkout_event_id and order_id with the basket, statuses and GPS. The dashboard reads the decisions and purchases published to ClickHouse. The local policy and the previous fleet have different labels. Evidence: docs/evidencia-clientes.json and docs/AGENTES-CLIENTES.md.
 
 ## Concurrent traffic extension
 
-Modo híbrido: 3 clientes de IA y 197 clientes del simulador de tráfico, con 80 repartidores. El tráfico usa lotes y pausas distintas; conserva presupuesto, checkout, sesión y pedido. Los perfiles que exploran y abandonan mantienen clics mientras los compradores esperan entregas. Resumen de doce clientes y marcadores reducidos para flotas grandes. Se configuran hasta 500 clientes y 150 repartidores; el escenario 200/80 tiene evidencia en docs/evidencia-trafico.json.
+Hybrid mode: 3 AI customers and 197 traffic-simulator customers, with 80 couriers. Traffic uses batches and varied pauses; it keeps budget, checkout, session and order. Profiles that browse and abandon keep clicking while buyers wait for deliveries. Summary of twelve customers and smaller markers for large fleets. Up to 500 customers and 150 couriers can be configured; the 200/80 scenario has evidence in docs/evidencia-trafico.json.

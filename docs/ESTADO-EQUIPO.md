@@ -1,76 +1,76 @@
-> **Ampliación 14/10:** ya existe el agente de clientes con IA local y relación checkout → compra → estados → GPS. [Guía de la ampliación](AGENTES-CLIENTES.md). La miniapp manual y otros puntos pendientes de esta evaluación anterior siguen separados.
+> **Extension of 14 Oct:** the local AI customer agent now exists, with the checkout → purchase → statuses → GPS link. [Guide to the extension](AGENTES-CLIENTES.md). The manual mini-app and other pending points from this earlier review remain separate.
 
-# Estado del proyecto para el equipo
+# Project status for the team
 
-## Actualización del 7 de octubre de 2026
+## Update of 7 October 2026
 
-**Ampliación posterior del mismo día:** Jere pidió continuar con Rayo hasta que se incorpore el equipo. Se añadió tracking sintético de Madrid, tablas de posiciones/estados, catálogo de demo y dashboard operativo en el puerto 8001. Véase [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md): es el estado vigente. El reparto y PDF descritos más abajo son la propuesta previa, no tareas que estemos esperando.
+**Later extension on the same day:** Jere asked to continue with Rayo until the team joins. Synthetic Madrid tracking, position/status tables, a demo catalog and an operations dashboard on port 8001 were added. See [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md): it is the current status. The work split and PDF described below are the earlier proposal, not tasks we are waiting on.
 
-Se ha implementado la infraestructura v1 en `delivery_atlas`: SQL, contrato, API Python en Docker, cola persistente SQLite, publicador y generador. La miniapp de reparto y el dashboard específico siguen pendientes. El reparto es **Jere: base e ingesta; Anuar: miniapp; Echenique: dashboard y reproducción**. Leer [PLAN-EQUIPO.md](PLAN-EQUIPO.md) y [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md).
+The v1 infrastructure has been implemented in `delivery_atlas`: SQL, contract, Python API in Docker, persistent SQLite queue, publisher and generator. The delivery mini-app and the dedicated dashboard are still pending. The split is **Jere: database and ingestion; Anuar: mini-app; Echenique: dashboard and reproduction**. Read [PLAN-EQUIPO.md](PLAN-EQUIPO.md) and [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md).
 
-El SQL aplicado es `sql/atlas.sql`, con `ReplacingMergeTree` en el detalle y conjuntos de IDs en `AggregatingMergeTree` para los recuentos lógicos. La cola admite reintentos con el mismo ID y contenido; un cambio de contenido devuelve conflicto. La API está en el puerto 8001. El laboratorio histórico conserva su base y sus paneles.
+The applied SQL is `sql/atlas.sql`, with `ReplacingMergeTree` for the detail and ID sets in `AggregatingMergeTree` for the logical counts. The queue accepts retries with the same ID and content; a change of content returns a conflict. The API is on port 8001. The historical lab keeps its database and dashboards.
 
-**Guía para los tres:** [PDF del equipo](../output/pdf/Delivery-Atlas-Guia-Equipo.pdf). Se verificó un millón de eventos sintéticos, reintentos y recuperación tras paradas ordenadas. Detalle y agregado coinciden, pero el agregado no fue más rápido en la prueba nueva. [Resultados y condiciones](RESULTADOS-ATLAS.md).
+**Guide for the three of us:** [team PDF](../output/pdf/Delivery-Atlas-Guia-Equipo.pdf). One million synthetic events, retries and recovery after orderly shutdowns were verified. Detail and aggregate match, but the aggregate was not faster in the new test. [Results and conditions](RESULTADOS-ATLAS.md).
 
-Las secciones siguientes son la fotografía del 5 de octubre, anterior a esta implementación. Sus cifras describen las fuentes históricas y no se reutilizan como benchmarks de la base nueva.
+The following sections are the snapshot of 5 October, before this implementation. Their figures describe the historical sources and are not reused as benchmarks of the new database.
 
-Actualización: 5 de octubre de 2026. Este documento describe lo implementado y separa las propuestas que aún debe decidir el grupo.
+Update: 5 October 2026. This document describes what has been implemented and separates the proposals the group still has to decide on.
 
-## Qué está hecho
+## What is done
 
-- ClickHouse 25.8 en un nodo Docker, volumen persistente y API Python.
-- Carga, validación y dashboards de fuentes reales; scripts de Python y SQL.
-- Vista materializada y agregado diario de OTTO.
-- Reproducción de eventos históricos mientras se consulta el dashboard y clics nuevos de la propia página, en tablas separadas.
-- Script de inserción, consulta, actualización y borrado en una tabla de ensayo.
-- Documentación de instalación, fundamentos, demo y resultados; diapositivas navegables.
+- ClickHouse 25.8 in one Docker node, persistent volume and Python API.
+- Loading, validation and dashboards for real sources; Python and SQL scripts.
+- Materialized view and daily aggregate for OTTO.
+- Replay of historical events while the dashboard is queried, and new clicks from the page itself, in separate tables.
+- Insert, query, update and delete script on a scratch table.
+- Installation, fundamentals, demo and results documentation; navigable slides.
 
-| Fuente | Carga verificada en el equipo de desarrollo | Papel |
+| Source | Load verified on the development machine | Role |
 |---|---:|---|
-| OTTO | 216.716.096 eventos; 194.720.954 clics | Volumen, clics y agregación |
-| REES46 | 411.709.736 eventos, siete meses | Tiempo, categorías, marcas, vistas, carritos y compras |
-| Ele.me | 2.170.299 muestras; 38.914 etiquetas positivas | Recomendaciones de comida a domicilio en China; primer ZIP D1_0 |
-| Glovo FooDI-ML | 2.887.444 productos; 415.137 de España | Catálogo, sin clics ni ventas |
-| Estrés derivado de OTTO | 1.083.580.480 filas | Cinco escenarios derivados; no observaciones nuevas |
+| OTTO | 216,716,096 events; 194,720,954 clicks | Volume, clicks and aggregation |
+| REES46 | 411,709,736 events, seven months | Time, categories, brands, views, carts and purchases |
+| Ele.me | 2,170,299 samples; 38,914 positive labels | Food-delivery recommendations in China; first ZIP D1_0 |
+| Glovo FooDI-ML | 2,887,444 products; 415,137 from Spain | Catalog, no clicks or sales |
+| Stress test derived from OTTO | 1,083,580,480 rows | Five derived scenarios; not new observations |
 
-OTTO y REES46 suman 628.425.832 eventos reales de poblaciones diferentes. Las muestras de Ele.me y los productos de Glovo no se mezclan con ese total. No existen identificadores comunes para atribuir los clics de Ele.me a productos españoles de Glovo.
+OTTO and REES46 add up to 628,425,832 real events from different populations. The Ele.me samples and the Glovo products are not mixed into that total. There are no common identifiers to attribute Ele.me clicks to Spanish Glovo products.
 
-## Evidencia técnica
+## Technical evidence
 
-- Misma agregación diaria OTTO: 5,8908 s desde el histórico frente a 0,2113 s desde el agregado; respuestas iguales y caché SQL desactivada. Mediana de tres ejecuciones locales.
-- Agrupación por escenarios sobre 1.083.580.480 filas derivadas: 1,4357 s, una ejecución local.
-- Conteo de etiquetas positivas Ele.me: mediana de 0,0581 s para 2.170.299 filas, tres ejecuciones locales.
-- La lectura completa del JSON de Ele.me agotó el límite total de memoria local de 3,50 GiB. No hay comparación de tiempos completada entre JSON y columna tipada.
+- Same daily OTTO aggregation: 5.8908 s from the history vs 0.2113 s from the aggregate; identical answers and SQL cache disabled. Median of three local runs.
+- Grouping by scenario over 1,083,580,480 derived rows: 1.4357 s, one local run.
+- Count of Ele.me positive labels: median of 0.0581 s for 2,170,299 rows, three local runs.
+- Reading the full Ele.me JSON exhausted the local total memory limit of 3.50 GiB. No timing comparison between JSON and a typed column was completed.
 
-Estos resultados no comparan ClickHouse con PostgreSQL ni acreditan rendimiento en otro equipo. Los informes originales están en `data/*benchmark.json`; [RESULTADOS.md](RESULTADOS.md) y [ELEME.md](ELEME.md) explican condiciones y límites.
+These results do not compare ClickHouse with PostgreSQL nor establish performance on another machine. The original reports are in `data/*benchmark.json`; [RESULTADOS.md](RESULTADOS.md) and [ELEME.md](ELEME.md) explain conditions and limits.
 
-## Qué contiene GitHub
+## What GitHub contains
 
-Código, SQL, configuración Docker, paneles, documentación, capturas de resultados y pequeños informes de mediciones. Los ZIP/CSV y el volumen Docker **no se suben**: clonar el repositorio no descarga los millones de filas. Las instrucciones enlazan las fuentes y permiten cargar los datos. Ele.me requiere cuenta Tianchi y revisión de sus condiciones; no se redistribuye el archivo.
+Code, SQL, Docker configuration, dashboards, documentation, result screenshots and small measurement reports. The ZIP/CSV files and the Docker volume are **not uploaded**: cloning the repository does not download the millions of rows. The instructions link to the sources and allow the data to be loaded. Ele.me requires a Tianchi account and reviewing its terms; the file is not redistributed.
 
-Para esta versión usar `compose.yaml` y [INSTALACION.md](INSTALACION.md). Se conservan archivos de la versión anterior del repositorio con Flask/Grafana; sus instrucciones, puertos y métricas no describen esta implementación. Las presentaciones antiguas y paneles de los primeros enfoques son material de trabajo, no el guion definitivo.
+For this version use `compose.yaml` and [INSTALACION.md](INSTALACION.md). Files from the earlier Flask/Grafana version of the repository are kept; their instructions, ports and metrics do not describe this implementation. The old presentations and dashboards from the first approaches are working material, not the final script.
 
-## Encaje con el enunciado
+## Fit with the assignment
 
-Hay datasets reales, dashboard, integración Python, CRUD, modelo columnar y mediciones. Las guías cubren instalación, arquitectura, consistencia, escalado y reflexión crítica. Se ha ejecutado un nodo: la replicación y el reparto entre nodos están explicados, no demostrados. El profesor confirmó ClickHouse como tecnología del grupo (19/10/2026). Utiliza SQL y debe presentarse como motor analítico columnar. Requisitos y estado de cada uno: [ENUNCIADO.md](ENUNCIADO.md).
+There are real datasets, a dashboard, Python integration, CRUD, a columnar model and measurements. The guides cover installation, architecture, consistency, scaling and critical reflection. One node has been run: replication and sharding across nodes are explained, not demonstrated. The professor confirmed ClickHouse as the group's technology (19 October 2026). It uses SQL and should be presented as a columnar analytical engine. Requirements and the status of each one: [ENUNCIADO.md](ENUNCIADO.md).
 
-## Dirección del proyecto y decisiones pendientes
+## Project direction and pending decisions
 
-**Delivery Atlas: infraestructura analítica de una plataforma ficticia de comida a domicilio.**
+**Delivery Atlas: analytics infrastructure for a fictional food-delivery platform.**
 
-**Nueva dirección indicada por el profesor y añadida por el grupo:** definir una plataforma ficticia de comida a domicilio, con una infraestructura analítica para sus eventos. El recorrido de navegación y una carga masiva pueden ser simulados y deben identificarse como tales. Un contrato de eventos y adaptadores permitirían incorporar datos reales futuros sin cambiar todas las consultas y paneles. Véase [PLATAFORMA-FICTICIA.md](PLATAFORMA-FICTICIA.md).
+**New direction suggested by the professor and adopted by the group:** define a fictional food-delivery platform, with an analytics infrastructure for its events. The browsing path and a massive load can be simulated and must be labelled as such. An event contract and adapters would allow future real data to be added without changing every query and dashboard. See [PLATAFORMA-FICTICIA.md](PLATAFORMA-FICTICIA.md).
 
-El [mapa de la base de datos](ESTRUCTURA-BD.md) explica el laboratorio actual y el modelo propuesto. La [presentación de avance y sus notas](AVANCE-PRESENTACION.md) están en inglés, duran 5 minutos y priorizan estructura y estado. La [revisión de la teoría](REVISION-TEORIA.md) identifica como próximos ajustes la idempotencia, las métricas de ingesta y la reproducción completa del entorno.
+The [database map](ESTRUCTURA-BD.md) explains the current lab and the proposed model. The [progress presentation and its notes](AVANCE-PRESENTACION.md) are in English, last 5 minutes and prioritize structure and status. The [theory review](REVISION-TEORIA.md) identifies idempotency, ingestion metrics and full reproduction of the environment as the next adjustments.
 
-La plataforma completa y el contrato común todavía no están implementados. La infraestructura y los datasets actuales son la base de trabajo: OTTO demuestra escala e ingesta; Ele.me aporta recomendaciones reales del sector; REES46 amplía las dimensiones temporales; Glovo aporta catálogo español; la tabla derivada sirve como estrés opcional. Sus resultados no acreditan todavía el rendimiento de la futura plataforma ficticia.
+The complete platform and the common contract are not implemented yet. The current infrastructure and datasets are the working base: OTTO demonstrates scale and ingestion; Ele.me provides real recommendations from the industry; REES46 extends the time dimensions; Glovo provides a Spanish catalog; the derived table serves as an optional stress test. Their results do not yet establish the performance of the future fictional platform.
 
-Próximas decisiones:
+Next decisions:
 
-1. Cerrar qué fuentes entran en los 30 minutos y cuáles quedan como material complementario.
-2. Alinear diapositivas y documentación con ese alcance; Ele.me está integrado, pero el guion principal sigue centrado en OTTO.
-3. Ensayar una demo breve de ingesta, dashboard y comparación de consultas; CRUD en tabla de ensayo.
-4. Probar la instalación desde cero en otro equipo, con una ruta de volumen reducido si hace falta.
-5. Valorar después dos nodos o una comparación de claves de orden. Ya hay volumen suficiente para la clase; descargar más datos no es un requisito pendiente del proyecto.
-6. Definir la plataforma ficticia, su contrato de eventos, la carga simulada y los adaptadores para fuentes futuras. Validar la infraestructura con datos semirreales y con los datasets públicos disponibles, manteniendo su procedencia.
+1. Settle which sources go into the 30 minutes and which remain supplementary material.
+2. Align slides and documentation with that scope; Ele.me is integrated, but the main script is still centred on OTTO.
+3. Rehearse a short demo of ingestion, dashboard and query comparison; CRUD on a scratch table.
+4. Test the installation from scratch on another machine, with a reduced-volume path if needed.
+5. Later, consider two nodes or a comparison of sort keys. There is already enough volume for the class; downloading more data is not a pending requirement of the project.
+6. Define the fictional platform, its event contract, the simulated load and the adapters for future sources. Validate the infrastructure with semi-real data and with the available public datasets, keeping their provenance.
 
-Los datos son históricos. El replay demuestra ingesta actual de eventos antiguos; los botones de la página producen las únicas acciones nuevas de la demo. No hay conexión en vivo con Uber Eats, Glovo ni Ele.me.
+The data is historical. The replay demonstrates current ingestion of old events; the page buttons produce the only new actions in the demo. There is no live connection to Uber Eats, Glovo or Ele.me.

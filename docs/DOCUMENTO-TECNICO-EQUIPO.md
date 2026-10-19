@@ -1,193 +1,193 @@
 # Delivery Atlas
-## Documento técnico para el equipo
+## Technical document for the team
 
-**Destinatarios:** Jere, Anuar y Echenique. **Revisión del código:** 14 de octubre de 2026. **Base revisada:** commit `5feb407`. Las mediciones y capturas conservadas corresponden al 7 de octubre; este documento no afirma que los servicios estén encendidos hoy.
+**Audience:** Jere, Anuar and Echenique. **Code review:** 14 October 2026. **Reviewed base:** commit `5feb407`. The measurements and screenshots kept are from 7 October; this document does not claim that the services are running today.
 
-### Qué estamos construyendo
+### What we are building
 
-Una infraestructura analítica para una plataforma ficticia de comida a domicilio, inspirada en Uber Eats y Glovo. Recibimos acciones de navegación, estados de pedidos y posiciones de repartidores; ClickHouse conserva el histórico y alimenta un dashboard.
+An analytics infrastructure for a fictional food-delivery platform, inspired by Uber Eats and Glovo. We receive browsing actions, order statuses and courier positions; ClickHouse keeps the history and feeds a dashboard.
 
-**Hay dos partes que se complementan:** el laboratorio contiene datasets públicos de gran volumen; Delivery Atlas tiene nuestro propio contrato de eventos y un escenario operativo simulado de Madrid. Sus identificadores y poblaciones permanecen separados.
+**There are two complementary parts:** the lab contains large public datasets; Delivery Atlas has our own event contract and a simulated operational scenario in Madrid. Their identifiers and populations stay separate.
 
-### Qué está implementado
+### What is implemented
 
-- Un nodo ClickHouse, dos bases lógicas y almacenamiento persistente en Docker.
-- API Python, validación, cola SQLite, publicación por lotes y control de reintentos.
-- Generadores de navegación y GPS, catálogo ficticio y estados de pedidos.
-- Dashboard con tracking, métricas, navegación e inventario de fuentes.
-- Web compartida en Vercel, conectada al ordenador de Jere por un gateway de lectura y un túnel temporal.
+- One ClickHouse node, two logical databases and persistent storage in Docker.
+- Python API, validation, SQLite queue, batch publishing and retry control.
+- Browsing and GPS generators, a fictional catalog and order statuses.
+- Dashboard with tracking, metrics, browsing and an inventory of sources.
+- Shared website on Vercel, connected to Jere's computer through a read gateway and a temporary tunnel.
 
-La miniapp comercial completa, su checkout conectado a un pedido y la instalación comprobada en otro ordenador siguen pendientes. Los datos del tracking son ficticios; no tenemos acceso a la telemetría interna de Uber Eats o Glovo.
+The complete commercial mini-app, its checkout connected to an order and a verified installation on another computer are still pending. The tracking data is fictional; we have no access to Uber Eats' or Glovo's internal telemetry.
 
-### Cómo leer este documento
+### How to read this document
 
-| Si quieres entender... | Lee primero |
+| If you want to understand... | Read first |
 |---|---|
-| La idea y las tecnologías | 1-2: arquitectura y componentes |
-| Cómo llega un registro a la base | 3-7: ingesta, SQL y esquemas |
-| Qué datos estamos mostrando | 8-11: simulación, fuentes y panel |
-| Cómo ejecutarlo o compartirlo | 12-14: Vercel, arranque y consultas |
-| Qué está demostrado y dónde trabajar | 15-16: resultados y mapa del código |
+| The idea and the technologies | 1-2: architecture and components |
+| How a record reaches the database | 3-7: ingestion, SQL and schemas |
+| What data we are showing | 8-11: simulation, sources and dashboard |
+| How to run or share it | 12-14: Vercel, start-up and queries |
+| What is demonstrated and where to work | 15-16: results and code map |
 
-Repositorio: https://github.com/Gere2/analitica-reparto-clickhouse. Demo publicada el 7/10: https://delivery-atlas-demo.vercel.app. Su actualización depende del laboratorio local.
+Repository: https://github.com/Gere2/analitica-reparto-clickhouse. Demo published on 7 October: https://delivery-atlas-demo.vercel.app. Its updates depend on the local lab.
 
 <!-- page -->
-# 1. Arquitectura: quién hace cada trabajo
+# 1. Architecture: who does each job
 
-### Camino de un evento nuevo
+### Path of a new event
 
 ```text
-Generador o acción manual
+Generator or manual action
         |
-Validación Python -> SQLite: evento pendiente
+Python validation -> SQLite: pending event
         |
-Publicador por lotes -> ClickHouse: histórico + agregados
+Batch publisher -> ClickHouse: history + aggregates
         |
-API de lectura -> dashboard: métricas y posiciones
+Read API -> dashboard: metrics and positions
 ```
 
-El simulador integrado llama directamente a la misma validación y cola. Un cliente externo entra por HTTP. Las cargas públicas del laboratorio utilizan sus scripts ETL y escriben en otra base lógica.
+The built-in simulator calls the same validation and queue directly. An external client comes in over HTTP. The lab's public loads use their ETL scripts and write to another logical database.
 
-### Servicios y direcciones
+### Services and addresses
 
-| Componente | Función y dirección |
+| Component | Role and address |
 |---|---|
-| `clickhouse` | Un servidor ClickHouse. Dentro de Docker: `clickhouse:8123`; desde el ordenador: `127.0.0.1:8124`. |
-| `atlas` | API, simulador y publicador en un mismo proceso Python. Web/API: `127.0.0.1:8001`. |
-| `share-gateway` | Servicio adicional de lectura para compartir. Puerto 8080 interno; no se publica un puerto del host. |
-| `share-tunnel` | Conexión saliente con Cloudflare hacia el gateway. Solo se arranca para compartir. |
-| Laboratorio histórico | `dashboard.py`, ejecutado aparte en `127.0.0.1:8000`. No forma parte del proceso Atlas. |
+| `clickhouse` | One ClickHouse server. Inside Docker: `clickhouse:8123`; from the computer: `127.0.0.1:8124`. |
+| `atlas` | API, simulator and publisher in a single Python process. Web/API: `127.0.0.1:8001`. |
+| `share-gateway` | Additional read service for sharing. Internal port 8080; no host port is published. |
+| `share-tunnel` | Outgoing connection with Cloudflare towards the gateway. Only started for sharing. |
+| Historical lab | `dashboard.py`, run separately on `127.0.0.1:8000`. Not part of the Atlas process. |
 
-**Un nodo es una instancia del servidor de base de datos.** Los cuatro servicios de la compartición no equivalen a cuatro nodos ClickHouse: seguimos teniendo uno.
+**A node is one instance of the database server.** The four sharing services are not four ClickHouse nodes: we still have one.
 
-### Almacenamiento persistente
+### Persistent storage
 
-- Volumen `clickhouse_data`: tablas, partes y estado de ClickHouse.
-- Volumen `atlas_queue`: SQLite en `/state/outbox.sqlite`.
-- Directorio local `data/`: archivos fuente, manifiestos y configuración privada de compartición; ignorado por Git.
+- `clickhouse_data` volume: ClickHouse tables, parts and state.
+- `atlas_queue` volume: SQLite at `/state/outbox.sqlite`.
+- Local `data/` directory: source files, manifests and private sharing configuration; ignored by Git.
 
-Los volúmenes permiten conservar datos entre reinicios. No aportan por sí solos réplica, copia de seguridad o protección ante pérdida del disco. `delivery` y `delivery_atlas` comparten el mismo servidor y sus recursos.
+The volumes keep data across restarts. On their own they provide no replica, backup or protection against disk loss. `delivery` and `delivery_atlas` share the same server and its resources.
 
-**Archivos de referencia:** `compose.yaml`, `compose.share.yaml`, `Dockerfile.atlas`, `Dockerfile.share` y `dashboard.py`.
+**Reference files:** `compose.yaml`, `compose.share.yaml`, `Dockerfile.atlas`, `Dockerfile.share` and `dashboard.py`.
 
 <!-- page -->
-# 2. Tecnologías utilizadas y por qué
+# 2. Technologies used and why
 
-| Tecnología | Uso concreto en este proyecto |
+| Technology | Specific use in this project |
 |---|---|
-| ClickHouse 25.8 | Almacenar eventos masivos y consultar agrupaciones, históricos y últimos estados. Imagen `clickhouse/clickhouse-server:25.8`; versión observada en la medición: 25.8.33.6. |
-| SQL | Definir tablas, particiones, vistas y consultas analíticas. Utilizamos SQL aunque la asignatura agrupe esta tecnología con bases NoSQL. |
-| Python 3.12 en Docker | API, validación, publicador, simulación y gateway. La ruta Atlas utiliza la biblioteca estándar, sin instalar un framework web. |
-| SQLite | Cola persistente local y registro de IDs aceptados. Su papel es transportar eventos hacia ClickHouse. |
-| Docker y Compose | Reproducir los servicios, red interna, configuración y volúmenes. Atlas se activa con el perfil `atlas`. |
-| HTML, CSS, JavaScript y SVG | Interfaz, consultas HTTP, tablas, barras y plano de coordenadas. No requiere React ni una API externa de mapas. |
-| Node.js y Vercel | Preparar la web compartida y ejecutar `api/proxy.js` por petición. La función reenvía lecturas al laboratorio. |
-| Cloudflare Tunnel | Conectar temporalmente Vercel con el gateway local mediante HTTPS, sin publicar el SQL de ClickHouse. Imagen fijada: `2026.3.0`. |
-| Git y GitHub | Compartir código, documentación, SQL, capturas y resultados pequeños. Los datasets masivos no están en el repositorio. |
-| ReportLab y Poppler | Generar y revisar este PDF. Son herramientas de documentación, no dependencias de la demo. |
+| ClickHouse 25.8 | Store massive events and query groupings, history and latest states. Image `clickhouse/clickhouse-server:25.8`; version observed in the measurement: 25.8.33.6. |
+| SQL | Define tables, partitions, views and analytical queries. We use SQL even though the course groups this technology with NoSQL databases. |
+| Python 3.12 in Docker | API, validation, publisher, simulation and gateway. The Atlas path uses the standard library, without installing a web framework. |
+| SQLite | Local persistent queue and log of accepted IDs. Its role is to transport events to ClickHouse. |
+| Docker and Compose | Reproduce the services, internal network, configuration and volumes. Atlas is enabled with the `atlas` profile. |
+| HTML, CSS, JavaScript and SVG | Interface, HTTP queries, tables, bars and coordinate plane. No React or external map API is required. |
+| Node.js and Vercel | Prepare the shared website and run `api/proxy.js` per request. The function forwards reads to the lab. |
+| Cloudflare Tunnel | Temporarily connect Vercel with the local gateway over HTTPS, without publishing ClickHouse's SQL. Pinned image: `2026.3.0`. |
+| Git and GitHub | Share code, documentation, SQL, screenshots and small results. The massive datasets are not in the repository. |
+| ReportLab and Poppler | Generate and review this PDF. They are documentation tools, not dependencies of the demo. |
 
-### Por qué ClickHouse encaja
+### Why ClickHouse fits
 
-Nuestro trabajo combina muchas inserciones de eventos y lecturas que cuentan, agrupan y comparan períodos. Organizamos los datos con motores de la familia MergeTree y preparamos estados agregados para el dashboard. El objetivo es analítica, no resolver cobros o asignaciones transaccionales.
+Our workload combines many event inserts with reads that count, group and compare periods. We organize the data with engines from the MergeTree family and prepare aggregate states for the dashboard. The goal is analytics, not resolving transactional payments or assignments.
 
-ClickHouse no mide clics por sí solo: **nosotros registramos eventos y la base permite analizarlos**. Una posición GPS o una fila de catálogo tampoco se convierte en un clic por almacenarse allí.
+ClickHouse does not measure clicks on its own: **we record events and the database makes it possible to analyse them**. A GPS position or a catalog row does not become a click just because it is stored there.
 
-Existe una implementación inicial en `app/` con Flask 3.1.3 y `clickhouse-connect` 1.9.0. No es la API activa de Atlas. Esta última conecta por HTTP con `urllib.request`; devuelve resultados JSON e inserta en formato `JSONEachRow`.
+There is an initial implementation in `app/` with Flask 3.1.3 and `clickhouse-connect` 1.9.0. It is not the active Atlas API. The latter connects over HTTP with `urllib.request`; it returns JSON results and inserts in `JSONEachRow` format.
 
-También conservamos `docker-compose.yml`: configuración inicial de esa app y Grafana 12.3.0, con el plugin `grafana-clickhouse-datasource` y conexión nativa al puerto 9000 de la base `reparto`. Servía para visualizar consultas mediante Grafana y separar usuarios de escritura/lectura. La ruta actual del proyecto usa `compose.yaml` y nuestro dashboard web; arrancar aquel fichero no reproduce Atlas.
+We also keep `docker-compose.yml`: the initial configuration of that app and Grafana 12.3.0, with the `grafana-clickhouse-datasource` plugin and a native connection to port 9000 of the `reparto` database. It was used to visualize queries through Grafana and to separate write/read users. The project's current path uses `compose.yaml` and our web dashboard; starting that file does not reproduce Atlas.
 
-**Configuración local:** `clickhouse-config.xml` limita el pool de merges a cuatro; el cliente Atlas fija `max_threads=4`, inserciones síncronas y espera de final de consulta. Son ajustes del equipo de demostración, no una medición de capacidad máxima del motor.
+**Local configuration:** `clickhouse-config.xml` limits the merge pool to four; the Atlas client sets `max_threads=4`, synchronous inserts and waiting for the end of the query. These are settings for the demo machine, not a measurement of the engine's maximum capacity.
 
 <!-- page -->
-# 3. Ingesta, cola y reintentos
+# 3. Ingestion, queue and retries
 
-### Recorrido exacto
+### Exact path
 
-1. El cliente crea un UUID por evento, su hora y su contenido.
-2. `atlas/server.py` recibe el JSON y llama a `contract.py` o `operations.py`.
-3. `Store.accept()` abre una transacción SQLite con `BEGIN IMMEDIATE`, comprueba IDs y guarda el lote.
-4. La API responde cuando la cola ha aceptado el evento. **202 no significa que el dashboard ya lo pueda consultar.**
-5. `Publisher` lee hasta 5000 pendientes, agrupa por tabla e inserta con el cliente de ClickHouse.
-6. Solo después marca esas filas como publicadas. Las vistas materializadas procesan las inserciones y la API consulta los resultados.
+1. The client creates a UUID per event, its time and its content.
+2. `atlas/server.py` receives the JSON and calls `contract.py` or `operations.py`.
+3. `Store.accept()` opens an SQLite transaction with `BEGIN IMMEDIATE`, checks IDs and stores the batch.
+4. The API responds once the queue has accepted the event. **202 does not mean the dashboard can already query it.**
+5. `Publisher` reads up to 5000 pending events, groups them by table and inserts them with the ClickHouse client.
+6. Only afterwards does it mark those rows as published. The materialized views process the inserts and the API queries the results.
 
-### Qué conserva SQLite
+### What SQLite keeps
 
-| Estructura | Contenido |
+| Structure | Content |
 |---|---|
-| `outbox` | Secuencia local, `event_id` único, SHA-256 del JSON canónico, payload con `ingested_at` y bandera `published`. |
-| `counters` | Aceptados, duplicados, peticiones, conflictos y errores observados. |
-| `metadata` | Última configuración/run del simulador para recordarlo al reiniciar. |
+| `outbox` | Local sequence, unique `event_id`, SHA-256 of the canonical JSON, payload with `ingested_at` and a `published` flag. |
+| `counters` | Accepted, duplicates, requests, conflicts and observed errors. |
+| `metadata` | Last simulator configuration/run, to remember it on restart. |
 
-Se usa WAL, `synchronous=FULL` y una conexión persistente protegida por `RLock`. La caché de páginas se configura a 32 MiB. Estas medidas evitan reabrir la conexión en cada tick; no sustituyen un backup.
+It uses WAL, `synchronous=FULL` and a persistent connection protected by an `RLock`. The page cache is set to 32 MiB. These measures avoid reopening the connection on every tick; they do not replace a backup.
 
-### Contrato de entrega
+### Delivery contract
 
-| Situación | Resultado |
+| Situation | Result |
 |---|---|
-| ID nuevo y contenido válido | Se guarda; respuesta 202. |
-| Mismo ID y mismo contenido | Se reconoce el reintento; 200 si el lote solo contiene duplicados. |
-| Mismo ID con otro contenido | Conflicto 409; se rechaza el lote SQLite. |
-| Cola con 200000 pendientes | 503 con indicación de reintento. No se confirma como aceptado. |
-| Contrato incorrecto / cuerpo excesivo | 400 / 413. Máximo 5000 eventos y 5 MiB por petición. |
+| New ID and valid content | Stored; response 202. |
+| Same ID and same content | The retry is recognized; 200 if the batch only contains duplicates. |
+| Same ID with different content | 409 conflict; the SQLite batch is rejected. |
+| Queue with 200000 pending | 503 with a retry indication. It is not confirmed as accepted. |
+| Wrong contract / body too large | 400 / 413. Maximum 5000 events and 5 MiB per request. |
 
-Si se pierde una respuesta, reenviar **el mismo ID, hora y contenido**. Crear un nuevo UUID convertiría el reintento en otro evento.
+If a response is lost, resend **the same ID, time and content**. Creating a new UUID would turn the retry into another event.
 
-Un lote mezclado puede necesitar tres INSERTs en ClickHouse. No forman una transacción conjunta. Si el segundo falla, el lote queda pendiente y se reenvía: puede generar copias físicas, que las lecturas lógicas resuelven. No prometemos entrega física exactamente una vez.
+A mixed batch may need three INSERTs into ClickHouse. They do not form a joint transaction. If the second one fails, the batch stays pending and is resent: it may produce physical copies, which the logical reads resolve. We do not promise physical exactly-once delivery.
 
 <!-- page -->
-# 4. Cómo hemos diseñado ClickHouse
+# 4. How we designed ClickHouse
 
-### Separación por función
+### Separation by function
 
-| Base | Qué contiene |
+| Database | What it contains |
 |---|---|
-| `delivery` | Fuentes públicas, sus agregados, replay histórico y tabla de ensayo CRUD. |
-| `delivery_atlas` | Navegación propia, catálogo ficticio, posiciones, estados y vistas de lectura. |
+| `delivery` | Public sources, their aggregates, historical replay and the CRUD scratch table. |
+| `delivery_atlas` | Our own browsing, fictional catalog, positions, statuses and read views. |
 
-### Motores y objetos
+### Engines and objects
 
-| Elemento | Qué significa en nuestra implementación |
+| Element | What it means in our implementation |
 |---|---|
-| `MergeTree` | Histórico tipado del laboratorio. Organiza partes de datos para las consultas. |
-| `ReplacingMergeTree(version)` | Conserva la versión más reciente de filas con la misma clave de ordenación cuando se fusionan. En Atlas se usa `ingested_at` o `version`. |
-| `AggregatingMergeTree` | Guarda estados intermedios de funciones de agregado; se combinan al consultar. |
-| `SummingMergeTree` | Agregados simples del laboratorio anterior. No es el contador exacto elegido para los reintentos de Atlas. |
-| Vista materializada incremental | Procesa bloques insertados y escribe estados en otra tabla. No es un hilo que consulte continuamente toda la base. |
-| Vista de lectura | Consulta guardada que finaliza/combina estados cuando la API la lee. |
+| `MergeTree` | Typed history of the lab. Organizes data parts for the queries. |
+| `ReplacingMergeTree(version)` | Keeps the most recent version of rows with the same sort key when they merge. Atlas uses `ingested_at` or `version`. |
+| `AggregatingMergeTree` | Stores intermediate states of aggregate functions; they are combined at query time. |
+| `SummingMergeTree` | Simple aggregates of the earlier lab. It is not the exact counter chosen for Atlas retries. |
+| Incremental materialized view | Processes inserted blocks and writes states to another table. It is not a thread that continuously queries the whole database. |
+| Read view | Saved query that finalizes/combines states when the API reads it. |
 
-Referencias: [ReplacingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/replacingmergetree), [AggregatingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree) y [vistas materializadas](https://clickhouse.com/docs/reference/statements/create/view).
+References: [ReplacingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/replacingmergetree), [AggregatingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree) and [materialized views](https://clickhouse.com/docs/reference/statements/create/view).
 
-### Partición, orden y unicidad
+### Partitioning, order and uniqueness
 
-Las tablas de eventos Atlas se particionan por mes. Su `ORDER BY` organiza los datos para las lecturas y define las claves sobre las que actúa el motor de reemplazo; **no impone una restricción UNIQUE**. La identidad y el contenido inmutables se controlan primero en SQLite.
+The Atlas event tables are partitioned by month. Their `ORDER BY` organizes data for reads and defines the keys the replacing engine acts on; **it does not enforce a UNIQUE constraint**. Immutable identity and content are controlled first in SQLite.
 
-Las fusiones son posteriores a la inserción: `count()` sobre filas físicas puede diferir de una lectura lógica. Usamos `FINAL` para resolver copias al leer detalle, `uniqExact` para contar IDs y `argMaxMerge` para obtener el último estado.
+Merges happen after insertion: `count()` over physical rows may differ from a logical read. We use `FINAL` to resolve copies when reading detail, `uniqExact` to count IDs and `argMaxMerge` to get the latest state.
 
-`CREATE ... IF NOT EXISTS` permite arrancar sin recrear objetos existentes. No es un sistema de migraciones: editar el SQL no transforma automáticamente una tabla ya creada ni rellena agregados con su histórico. Una evolución del esquema necesita un procedimiento explícito.
+`CREATE ... IF NOT EXISTS` allows starting without recreating existing objects. It is not a migration system: editing the SQL does not automatically transform an already created table or backfill aggregates with its history. Evolving the schema needs an explicit procedure.
 
 <!-- page -->
-# 5. Navegación: contrato y agregado diario
+# 5. Browsing: contract and daily aggregate
 
-**Una fila de `delivery_atlas.app_events` representa una acción lógica.** No representa una posición, un usuario único o una venta cobrada.
+**A row of `delivery_atlas.app_events` represents one logical action.** It does not represent a position, a unique user or a paid sale.
 
-| Columna o grupo | Tipo SQL y significado |
+| Column or group | SQL type and meaning |
 |---|---|
-| `schema_version` | `UInt16`; versión admitida: 1. |
-| `event_id`, `session_id` | `UUID`; identidad del evento y agrupación de la sesión. |
-| `event_time`, `ingested_at` | `DateTime64(3, 'UTC')`; hora del evento y aceptación en la cola. |
-| `event_date` | `Date MATERIALIZED toDate(event_time)`; calculada por ClickHouse. |
-| `event_type`, `section`, `city_id` | `LowCardinality(String)`; acción, pantalla/sección y ciudad. |
-| `user_id`, `restaurant_id`, `product_id` | `Nullable(String)`; referencias conocidas; `null` cuando no se conocen. |
-| `source` | `LowCardinality(String)`; generador o cliente que produjo el registro. |
-| `source_kind` | `Enum8`: `synthetic`, `demo_live`, `public_historical` o `historical_replay`. |
-| `source_record_id` | `Nullable(String)`; referencia a la observación histórica original. |
-| `simulation_run_id` | `Nullable(UUID)`; identifica una ejecución sintética. |
+| `schema_version` | `UInt16`; supported version: 1. |
+| `event_id`, `session_id` | `UUID`; event identity and session grouping. |
+| `event_time`, `ingested_at` | `DateTime64(3, 'UTC')`; event time and acceptance into the queue. |
+| `event_date` | `Date MATERIALIZED toDate(event_time)`; computed by ClickHouse. |
+| `event_type`, `section`, `city_id` | `LowCardinality(String)`; action, screen/section and city. |
+| `user_id`, `restaurant_id`, `product_id` | `Nullable(String)`; known references; `null` when unknown. |
+| `source` | `LowCardinality(String)`; generator or client that produced the record. |
+| `source_kind` | `Enum8`: `synthetic`, `demo_live`, `public_historical` or `historical_replay`. |
+| `source_record_id` | `Nullable(String)`; reference to the original historical observation. |
+| `simulation_run_id` | `Nullable(UUID)`; identifies a synthetic run. |
 
-La API exige los campos comunes, valida UUIDs y fechas con zona horaria, convierte a UTC y rechaza campos desconocidos. Un evento sintético necesita run; uno histórico necesita referencia original. Producto y carrito necesitan además `restaurant_id` y `product_id`.
+The API requires the common fields, validates UUIDs and dates with a time zone, converts to UTC and rejects unknown fields. A synthetic event needs a run; a historical one needs an original reference. Product and cart events also need `restaurant_id` and `product_id`.
 
-Acciones admitidas: `search`, `filter_applied`, `restaurant_opened`, `product_opened`, `product_impression`, `cart_added`, `order_submitted`. El contrato permite más acciones de las que muestra el generador básico.
+Supported actions: `search`, `filter_applied`, `restaurant_opened`, `product_opened`, `product_impression`, `cart_added`, `order_submitted`. The contract allows more actions than the basic generator shows.
 
-### Los cuatro objetos de navegación
+### The four browsing objects
 
 ```text
 app_events -> app_daily_rollup_mv -> app_daily_rollup
@@ -195,53 +195,53 @@ app_events -> app_daily_rollup_mv -> app_daily_rollup
                                app_daily_counts
 ```
 
-`app_daily_rollup` agrupa por procedencia, fecha, ciudad, sección y acción. Guarda `AggregateFunction(uniqExact, UUID)`; la materializada produce `uniqExactState(event_id)` y la vista combina con `uniqExactMerge(event_ids)`.
+`app_daily_rollup` groups by provenance, date, city, section and action. It stores `AggregateFunction(uniqExact, UUID)`; the materialized view produces `uniqExactState(event_id)` and the view combines them with `uniqExactMerge(event_ids)`.
 
-Así un reenvío con el mismo ID y dimensiones no suma dos veces dentro del grupo. No sumamos simplemente `count()` de cada INSERT. El conjunto exacto tiene coste de memoria y combinación, que aparece en las mediciones.
+That way a resend with the same ID and dimensions is not added twice within the group. We do not simply add up the `count()` of each INSERT. The exact set has a memory and merge cost, which shows up in the measurements.
 
-**Clave de ordenación del detalle:** `(source_kind, event_date, city_id, event_type, event_time, session_id, event_id)`. **Fuente de verdad:** `sql/atlas.sql` y `atlas/contract.py`.
-
-<!-- page -->
-# 6. Posiciones y pedidos: columnas utilizadas
-
-**Hay dos tablas de hechos separadas.** `courier_positions` registra una posición; `order_events` registra una foto completa de un pedido cuando cambia de estado.
-
-### Columnas comunes a las dos tablas
-
-| Campos | Tipo y uso |
-|---|---|
-| `schema_version` | `UInt16`; contrato v1 validado por Python. |
-| `event_id`, `simulation_run_id` | `UUID`; evento y ejecución. |
-| `courier_id`, `order_id` | `UUID`; repartidor y pedido de la simulación. |
-| `event_time`, `ingested_at` | `DateTime64(3, 'UTC')`; tiempo del evento y aceptación. |
-| `city_id`, `source` | `LowCardinality(String)`; ciudad y productor. |
-| `source_kind` | `Enum8('synthetic'=1)`; estas rutas solo admiten telemetría ficticia. |
-
-### Campos exclusivos del GPS
-
-| Campos | Tipo y uso |
-|---|---|
-| `latitude`, `longitude` | `Float64`; coordenadas. Rangos validados: ±90 y ±180. |
-| `speed_kmh`, `accuracy_m` | `Float32`; velocidad y precisión simuladas. La API admite 0-150 km/h y 0-10000 m. |
-
-### Campos exclusivos del estado del pedido
-
-| Campos | Tipo y uso |
-|---|---|
-| `restaurant_id` | `String`; negocio ficticio de recogida. |
-| `status` | `LowCardinality(String)`; estado admitido por el contrato. |
-| `amount_minor`, `currency` | `UInt32` y `FixedString(3)`; céntimos enteros y `EUR`. |
-| `pickup_lat`, `pickup_lon`, `dropoff_lat`, `dropoff_lon` | `Float64`; coordenadas ficticias de recogida y entrega. |
-| `order_created_at`, `promised_delivery_at` | `DateTime64(3, 'UTC')`; creación y plazo ficticio. |
-
-Estados: `created`, `preparing`, `picked_up`, `en_route`, `delivered`, `cancelled`. La API comprueba que creación no sea posterior al evento y que el plazo no sea anterior a creación; no implementa una máquina transaccional que prohíba todas las transiciones de negocio.
-
-Ambas tablas usan `ReplacingMergeTree(ingested_at)` y partición mensual. GPS ordena por `(simulation_run_id, city_id, courier_id, event_time, event_id)`; pedidos, por `(simulation_run_id, city_id, order_id, event_time, event_id)`.
-
-`ingested_at` lo añade la cola. `_stream` es una marca interna de enrutamiento que se retira antes del INSERT; el cliente no debe enviarla. Código y DDL: `atlas/operations.py` y `sql/atlas_operations.sql`.
+**Sort key of the detail table:** `(source_kind, event_date, city_id, event_type, event_time, session_id, event_id)`. **Source of truth:** `sql/atlas.sql` and `atlas/contract.py`.
 
 <!-- page -->
-# 7. Obtener el último estado sin perder el histórico
+# 6. Positions and orders: columns used
+
+**There are two separate fact tables.** `courier_positions` records a position; `order_events` records a complete snapshot of an order when its status changes.
+
+### Columns common to both tables
+
+| Fields | Type and use |
+|---|---|
+| `schema_version` | `UInt16`; v1 contract validated by Python. |
+| `event_id`, `simulation_run_id` | `UUID`; event and run. |
+| `courier_id`, `order_id` | `UUID`; courier and order in the simulation. |
+| `event_time`, `ingested_at` | `DateTime64(3, 'UTC')`; event time and acceptance. |
+| `city_id`, `source` | `LowCardinality(String)`; city and producer. |
+| `source_kind` | `Enum8('synthetic'=1)`; these routes only accept fictional telemetry. |
+
+### GPS-only fields
+
+| Fields | Type and use |
+|---|---|
+| `latitude`, `longitude` | `Float64`; coordinates. Validated ranges: ±90 and ±180. |
+| `speed_kmh`, `accuracy_m` | `Float32`; simulated speed and accuracy. The API accepts 0-150 km/h and 0-10000 m. |
+
+### Order-status-only fields
+
+| Fields | Type and use |
+|---|---|
+| `restaurant_id` | `String`; fictional pickup business. |
+| `status` | `LowCardinality(String)`; status allowed by the contract. |
+| `amount_minor`, `currency` | `UInt32` and `FixedString(3)`; integer cents and `EUR`. |
+| `pickup_lat`, `pickup_lon`, `dropoff_lat`, `dropoff_lon` | `Float64`; fictional pickup and dropoff coordinates. |
+| `order_created_at`, `promised_delivery_at` | `DateTime64(3, 'UTC')`; creation and fictional deadline. |
+
+Statuses: `created`, `preparing`, `picked_up`, `en_route`, `delivered`, `cancelled`. The API checks that creation is not later than the event and that the deadline is not earlier than creation; it does not implement a transactional state machine that forbids every business transition.
+
+Both tables use `ReplacingMergeTree(ingested_at)` and monthly partitioning. GPS is ordered by `(simulation_run_id, city_id, courier_id, event_time, event_id)`; orders, by `(simulation_run_id, city_id, order_id, event_time, event_id)`.
+
+`ingested_at` is added by the queue. `_stream` is an internal routing marker removed before the INSERT; the client must not send it. Code and DDL: `atlas/operations.py` and `sql/atlas_operations.sql`.
+
+<!-- page -->
+# 7. Getting the latest state without losing the history
 
 ### GPS
 
@@ -253,192 +253,192 @@ courier_positions -> courier_latest_mv
                      courier_latest
 ```
 
-La materializada guarda `argMaxState` en una tabla `AggregatingMergeTree`. La vista `courier_latest` combina esos estados con `argMaxMerge`. La clave de agrupación es ejecución, ciudad y repartidor.
+The materialized view stores `argMaxState` in an `AggregatingMergeTree` table. The `courier_latest` view combines those states with `argMaxMerge`. The grouping key is run, city and courier.
 
-El criterio de comparación es `tuple(event_time, event_id)`. Gana la hora de evento más reciente; ante empate, el UUID resuelve de forma determinista. Latitud, longitud, velocidad, pedido y horas se guardan juntos en una tupla, para que el resultado proceda de la misma fila.
+The comparison criterion is `tuple(event_time, event_id)`. The most recent event time wins; on a tie, the UUID resolves it deterministically. Latitude, longitude, speed, order and times are stored together in a tuple, so the result comes from the same row.
 
-### Ejemplo: llega tarde una posición antigua
+### Example: an old position arrives late
 
-| Evento | Hora del evento | Hora de llegada | Resultado |
+| Event | Event time | Arrival time | Result |
 |---|---|---|---|
-| A | 12:00:02 | 12:00:03 | Posición seleccionada inicialmente. |
-| B | 12:00:00 | 12:00:04 | Se conserva en histórico; no sustituye a A. |
+| A | 12:00:02 | 12:00:03 | Position initially selected. |
+| B | 12:00:00 | 12:00:04 | Kept in the history; it does not replace A. |
 
-Ordenar solo por llegada movería al repartidor hacia atrás. Nuestro criterio toma el tiempo del evento. Referencia: [argMax](https://clickhouse.com/docs/reference/functions/aggregate-functions/argMax).
+Ordering only by arrival would move the courier backwards. Our criterion takes the event time. Reference: [argMax](https://clickhouse.com/docs/reference/functions/aggregate-functions/argMax).
 
-### Pedidos
+### Orders
 
-`order_events -> order_latest_mv -> order_latest_state -> order_latest` aplica el mismo patrón, agrupando por ejecución, ciudad y pedido. Conserva la foto completa: estado, repartidor, negocio, importe, coordenadas y horas.
+`order_events -> order_latest_mv -> order_latest_state -> order_latest` applies the same pattern, grouping by run, city and order. It keeps the complete snapshot: status, courier, business, amount, coordinates and times.
 
-Los objetos `*_state` almacenan estados agregados, no un documento de usuario ni una fila de GPS directa. Las vistas `*_latest` son las que consume la API. El histórico sigue disponible en las tablas de hechos.
+The `*_state` objects store aggregate states, not a user document or a direct GPS row. The `*_latest` views are what the API consumes. The history is still available in the fact tables.
 
-### Relaciones y consistencia
+### Relationships and consistency
 
-El simulador crea referencias coherentes entre repartidor, pedido y negocio ficticio. No hay claves foráneas que ClickHouse esté comprobando en este modelo. Los IDs no identifican personas de otros datasets.
+The simulator creates consistent references between courier, order and fictional business. There are no foreign keys that ClickHouse checks in this model. The IDs do not identify people from other datasets.
 
-La API consulta posiciones, pedidos, métricas, ritmo y hora mediante SELECTs separados. No son una fotografía transaccional única: pueden existir diferencias breves durante la publicación. Tampoco existe réplica o sharding configurado. Separar run impide mezclar ejecuciones en la lectura de estados.
-
-<!-- page -->
-# 8. Simulación y catálogo: qué hemos inventado
-
-### Flota en tiempo de reloj
-
-`atlas/simulation.py` contiene `Scenario` (datos del escenario) y `Simulator` (hilo que genera ticks). Por defecto: Madrid, 12 repartidores, semilla 42 e intervalo solicitado de dos segundos. Admite 1-50 repartidores e intervalos de 1-10 segundos.
-
-Cada tick produce GPS; solo los cambios de estado producen fotos de pedidos. Los ciclos duran 160 s y comienzan escalonados; algunos pedidos empiezan ya avanzados, por lo que su primer histórico puede ser parcial. Aproximadamente un 12% de los ciclos se configura para cancelar. Estos parámetros describen el generador, no la demanda real de Madrid.
-
-Las coordenadas se interpolan entre origen, recogida, un punto intermedio y entrega. La siguiente ruta parte del destino anterior, o de recogida tras cancelación. Velocidad aproximada y precisión de 5 m también son simuladas; no se han observado ni validado contra calles reales.
-
-La generación usa semilla y UUID5 para reproducir el escenario cuando se conservan run y tiempos. Iniciar otra flota crea un nuevo run. Parar conserva el histórico; reiniciar la API recuerda el último run pero **no reactiva automáticamente el simulador**.
-
-### Dos generadores de navegación distintos
-
-- `scripts/atlas.py`: carga grande reproducible, tres ciudades y secuencias de cinco acciones completas. No sirve para estimar abandono real.
-- Simulador integrado: sesiones sintéticas con abandono posible entre pasos. Se generan aparte de los pedidos; no hay enlace comercial entre ese checkout y la entrega.
-- `scripts/operations.py`: carga histórica de GPS/estados por HTTP con tiempos fijados. No genera una flota que se mueva ahora ni envía sus clics auxiliares.
-
-### Catálogo: 12 negocios y 36 productos
-
-`atlas/catalog.py` lo siembra al arrancar si no existen las cantidades esperadas. `demo_restaurants` guarda ID, nombre, ciudad, coordenadas, origen ficticio y `version`. `demo_products` guarda ID, negocio, nombre, `price_minor`, EUR, `price_kind`, `name_kind`, `source_table`, `source_row` y `version`.
-
-Si está cargado Glovo Madrid, toma 36 nombres y sus filas de origen; en otro ordenador usa nombres de respaldo. **Precio, ubicación y asignación al negocio siguen siendo ficticios.** `name_kind` conserva la procedencia del nombre. El importe del pedido se genera de forma independiente: no es la suma de una cesta real del catálogo.
-
-DDL del catálogo: claves `restaurant_id` y `product_id`, motor `ReplacingMergeTree(version)`. La futura miniapp podrá reutilizar `GET /api/demo-catalog`.
+The API queries positions, orders, metrics, pace and time through separate SELECTs. They are not a single transactional snapshot: brief differences may exist during publishing. Nor is there any replica or sharding configured. Separating by run prevents mixing runs when reading states.
 
 <!-- page -->
-# 9. Fuentes públicas: volumen y significado
+# 8. Simulation and catalog: what we invented
 
-Recuentos documentados el **7/10/2026**, previos a nuevas inserciones. No se han vuelto a contar para redactar este PDF. La auditoría de columnas está en `docs/auditoria-esquemas.json`.
+### Fleet in clock time
 
-| Fuente / tabla en `delivery` | Filas verificadas | Qué representa una fila |
+`atlas/simulation.py` contains `Scenario` (scenario data) and `Simulator` (thread that generates ticks). By default: Madrid, 12 couriers, seed 42 and a requested interval of two seconds. It accepts 1-50 couriers and intervals of 1-10 seconds.
+
+Each tick produces GPS; only status changes produce order snapshots. Cycles last 160 s and start staggered; some orders start already advanced, so their first history may be partial. About 12% of cycles are configured to cancel. These parameters describe the generator, not real demand in Madrid.
+
+Coordinates are interpolated between origin, pickup, an intermediate point and dropoff. The next route starts from the previous destination, or from the pickup after a cancellation. Approximate speed and 5 m accuracy are also simulated; they have not been observed or validated against real streets.
+
+Generation uses a seed and UUID5 to reproduce the scenario when the run and times are kept. Starting another fleet creates a new run. Stopping keeps the history; restarting the API remembers the last run but **does not automatically reactivate the simulator**.
+
+### Two different browsing generators
+
+- `scripts/atlas.py`: large reproducible load, three cities and sequences of five complete actions. Not suitable for estimating real abandonment.
+- Built-in simulator: synthetic sessions with possible abandonment between steps. They are generated separately from the orders; there is no commercial link between that checkout and the delivery.
+- `scripts/operations.py`: historical GPS/status load over HTTP with fixed times. It does not generate a fleet that moves now, nor does it send its auxiliary clicks.
+
+### Catalog: 12 businesses and 36 products
+
+`atlas/catalog.py` seeds it on start-up if the expected quantities do not exist. `demo_restaurants` stores ID, name, city, coordinates, fictional origin and `version`. `demo_products` stores ID, business, name, `price_minor`, EUR, `price_kind`, `name_kind`, `source_table`, `source_row` and `version`.
+
+If Glovo Madrid is loaded, it takes 36 names and their source rows; on another computer it uses fallback names. **Price, location and assignment to the business are still fictional.** `name_kind` keeps the provenance of the name. The order amount is generated independently: it is not the sum of a real basket from the catalog.
+
+Catalog DDL: keys `restaurant_id` and `product_id`, engine `ReplacingMergeTree(version)`. The future mini-app can reuse `GET /api/demo-catalog`.
+
+<!-- page -->
+# 9. Public sources: volume and meaning
+
+Counts documented on **7 October 2026**, before new inserts. They have not been recounted to write this PDF. The column audit is in `docs/auditoria-esquemas.json`.
+
+| Source / table in `delivery` | Verified rows | What one row represents |
 |---|---|---|
-| OTTO / `otto_archive` | 216.716.096 | Evento de navegación: clic, carrito o pedido. |
-| REES46 / `rees46_events` | 411.709.736 | Vista, carrito o compra de comercio electrónico. |
-| Ele.me / `eleme_samples` | 2.170.299 | Muestra de recomendación con etiqueta `clicked`. |
-| Glovo / `glovo_products` | 2.887.444 | Producto del catálogo publicado; no un clic. |
-| TRD / `orders` | 1.068.495 | Pedido histórico del mismo corpus TRD/Meituan. |
-| TRD / `clicks` | 4.021.488 | Paso de una secuencia de restaurantes registrados. |
-| TRD / `click_summary` | 517.353 | Resumen de una secuencia; no un evento individual. |
-| TRD / `restaurants`, `foods` | 29.072 / 179.778 | Dimensiones de negocio y producto. |
-| TRD / `order_items` | 3.445.180 | Relación entre pedido y producto de ese corpus. |
-| `otto_replay` | 1.200.000 | Inserción de un evento antiguo reproducido. |
-| `otto_scale_benchmark` | 1.083.580.480 | Fila derivada de OTTO para estrés; no nueva observación. |
+| OTTO / `otto_archive` | 216,716,096 | Browsing event: click, cart or order. |
+| REES46 / `rees46_events` | 411,709,736 | E-commerce view, cart or purchase. |
+| Ele.me / `eleme_samples` | 2,170,299 | Recommendation sample with a `clicked` label. |
+| Glovo / `glovo_products` | 2,887,444 | Published catalog product; not a click. |
+| TRD / `orders` | 1,068,495 | Historical order from the same TRD/Meituan corpus. |
+| TRD / `clicks` | 4,021,488 | Step of a recorded sequence of restaurants. |
+| TRD / `click_summary` | 517,353 | Summary of a sequence; not an individual event. |
+| TRD / `restaurants`, `foods` | 29,072 / 179,778 | Business and product dimensions. |
+| TRD / `order_items` | 3,445,180 | Relationship between order and product in that corpus. |
+| `otto_replay` | 1,200,000 | Insertion of a replayed old event. |
+| `otto_scale_benchmark` | 1,083,580,480 | Row derived from OTTO for stress testing; not a new observation. |
 
-### Campos útiles que conservamos
+### Useful fields we keep
 
-OTTO: sesión, artículo, hora, acción y posición. REES46: hora, acción, producto, categoría, marca, precio, usuario y sesión. Ele.me: archivo/fila, usuario, tienda, artículo, ciudad anónima, contexto horario, etiqueta y características originales en JSON. Glovo: fila, país, ciudad, negocio, producto, sección y descripción.
+OTTO: session, article, time, action and position. REES46: time, action, product, category, brand, price, user and session. Ele.me: file/row, user, store, item, anonymous city, time context, label and original features in JSON. Glovo: row, country, city, business, product, section and description.
 
-TRD permite relacionar pedidos, clics y productos usando sus propios IDs y fechas. `price_band` es un intervalo de precio, no un importe exacto. Sus secuencias de clics no proporcionan el GPS de los repartidores.
+TRD makes it possible to relate orders, clicks and products using its own IDs and dates. `price_band` is a price range, not an exact amount. Its click sequences do not provide the couriers' GPS.
 
-Glovo tiene 415.137 productos de España y 68.575 de Madrid en la carga documentada. La muestra del panel no demuestra que esos productos o negocios sigan activos hoy.
+Glovo has 415,137 products from Spain and 68,575 from Madrid in the documented load. The dashboard sample does not prove that those products or businesses are still active today.
 
-**No unimos los IDs de OTTO, REES46, Ele.me, Glovo y Atlas.** Una suma de todas sus filas no significa usuarios, clics o pedidos de una única plataforma. Criteo, MT-LIFT y censo de Madrid aparecen en propuestas antiguas, pero no en las tablas activas auditadas.
+**We do not join the IDs of OTTO, REES46, Ele.me, Glovo and Atlas.** A sum of all their rows does not mean users, clicks or orders of a single platform. Criteo, MT-LIFT and the Madrid census appear in old proposals, but not in the audited active tables.
 
 <!-- page -->
-# 10. Cómo se cargaron los históricos
+# 10. How the historical data was loaded
 
-Estas rutas pertenecen al laboratorio. La demo pequeña de Atlas puede arrancar sin descargar sus archivos masivos.
+These paths belong to the lab. The small Atlas demo can start without downloading its massive files.
 
-| Ruta de código | Transformación y uso |
+| Code path | Transformation and use |
 |---|---|
-| `scripts/download.py`, `prepare.py`, `load.py` | Descargar/preparar TRD, convertir TSV a campos tipados y cargar las tablas del corpus. `sql/schema.sql` define el esquema. |
-| `scripts/otto.py` | Gestionar el archivo OTTO, cargar eventos, verificar recuentos y reproducirlos en `otto_replay`. |
-| `scripts/rees46.py` | Leer CSV comprimidos por mes, validar cabecera/tamaño y publicar lotes con control de carga parcial. |
-| `scripts/eleme.py`, `sql/eleme.sql` | Validar el formato de 39 campos, cargar staging y publicar archivos completos con `MOVE PARTITION`. |
-| `scripts/glovo.py` | Transformar el catálogo FooDI-ML a `glovo_products`, conservando fila y atributos de origen. |
-| `scripts/rollup.py`, `benchmark.py` | Preparar agregados OTTO y comparar consultas del laboratorio. |
-| `scripts/scale.py` | Crear el escenario derivado de estrés. No aporta clics observados adicionales. |
-| `dashboard.py` y páginas de `web/` | Leer el laboratorio y mostrar OTTO, REES46, Ele.me, Glovo, TRD y volumen. |
+| `scripts/download.py`, `prepare.py`, `load.py` | Download/prepare TRD, convert TSV to typed fields and load the corpus tables. `sql/schema.sql` defines the schema. |
+| `scripts/otto.py` | Manage the OTTO archive, load events, verify counts and replay them into `otto_replay`. |
+| `scripts/rees46.py` | Read compressed CSV per month, validate header/size and publish batches with partial-load control. |
+| `scripts/eleme.py`, `sql/eleme.sql` | Validate the 39-field format, load staging and publish complete files with `MOVE PARTITION`. |
+| `scripts/glovo.py` | Transform the FooDI-ML catalog into `glovo_products`, keeping the source row and attributes. |
+| `scripts/rollup.py`, `benchmark.py` | Prepare OTTO aggregates and compare lab queries. |
+| `scripts/scale.py` | Create the derived stress scenario. It adds no extra observed clicks. |
+| `dashboard.py` and pages in `web/` | Read the lab and show OTTO, REES46, Ele.me, Glovo, TRD and volume. |
 
-### Controles de rigor
+### Rigour checks
 
-Se conservan informes, manifiestos, huellas y recuentos en las rutas de cada importador. OTTO se contrastó con la huella y los recuentos del archivo; REES46 controla cada mes; Ele.me conserva `source_id`, archivo y fila, además de las características originales.
+Reports, manifests, fingerprints and counts are kept in each importer's paths. OTTO was checked against the archive's fingerprint and counts; REES46 checks each month; Ele.me keeps `source_id`, file and row, as well as the original features.
 
-En Ele.me no basta con tener 39 columnas: su correspondencia debe verificarse antes de confirmar el layout. La carga revisada es una parte del dataset anunciado, no todos los datos de la plataforma.
+For Ele.me, having 39 columns is not enough: their correspondence must be verified before confirming the layout. The reviewed load is one part of the announced dataset, not all of the platform's data.
 
-Mover partes con `MOVE PARTITION` no activa una vista materializada de inserción como si se insertaran filas nuevas. Tampoco se crea automáticamente un agregado retrospectivo al añadir una materializada a un histórico existente.
+Moving parts with `MOVE PARTITION` does not trigger an insert materialized view as if new rows were inserted. Nor is a retrospective aggregate created automatically when a materialized view is added to an existing history.
 
-El replay conserva la hora histórica y añade la hora de ingesta. **Que entre en la base durante la demo no lo convierte en un clic de un usuario actual.**
+The replay keeps the historical time and adds the ingestion time. **Entering the database during the demo does not turn it into a click from a current user.**
 
-Los archivos fuente grandes permanecen fuera de Git y de la subida de Vercel. El equipo comparte el código y las instrucciones; volver a obtener una fuente requiere seguir su acceso y condiciones. Las guías de cada dataset están en `docs/DATOS.md`, `GLOVO.md` y `ELEME.md`.
+The large source files stay outside Git and the Vercel upload. The team shares the code and instructions; obtaining a source again requires following its access and terms. The guides for each dataset are in `docs/DATOS.md`, `GLOVO.md` and `ELEME.md`.
 
 <!-- page -->
-# 11. Dashboard y API: de dónde sale cada dato
+# 11. Dashboard and API: where each piece of data comes from
 
-El panel usa `web/atlas-dashboard.html`, `.css` y `.js`. La API sirve web y JSON en el mismo origen; el navegador no necesita credenciales directas de ClickHouse.
+The dashboard uses `web/atlas-dashboard.html`, `.css` and `.js`. The API serves web and JSON from the same origin; the browser does not need direct ClickHouse credentials.
 
-| Endpoint local | Qué devuelve o hace |
+| Local endpoint | What it returns or does |
 |---|---|
-| `GET /api/operations` | Posiciones, lista de pedidos, métricas y GPS por intervalos de 5 s. Usa el último run si no se indica otro. |
-| `GET /api/track` | Hasta 240 posiciones lógicas del repartidor/run, ordenadas para dibujar el recorrido. |
-| `GET /api/simulation` | Estado, configuración y último run del simulador. |
-| `GET /api/status` | Pendientes/publicados y fases del publicador local. |
-| `GET /api/summary` | Navegación agregada; filtros de fecha, ciudad, procedencia y acción. |
-| `GET /api/recent` | Últimos 30 eventos de navegación globales. |
-| `GET /api/inventory` | Metadatos de tablas, filas físicas estimadas y disco. |
-| `GET /api/catalog` | Muestra Glovo Madrid si está cargada. |
-| `GET /api/demo-catalog` | Los negocios/productos de la demo, con procedencia por campo. |
-| `POST /api/events`, `/api/operations` | Aceptación en la cola de navegación o telemetría. |
-| `POST /api/simulation/start`, `/stop` | Control local de la flota. Inicio acepta `fleet`, `interval`, `seed`; parada recibe `{}`. |
-| `GET /health` | Consulta `SELECT 1` y estado del publicador para el healthcheck. |
+| `GET /api/operations` | Positions, order list, metrics and GPS in 5 s intervals. Uses the last run if no other is given. |
+| `GET /api/track` | Up to 240 logical positions of the courier/run, ordered to draw the path. |
+| `GET /api/simulation` | Simulator status, configuration and last run. |
+| `GET /api/status` | Pending/published and phases of the local publisher. |
+| `GET /api/summary` | Aggregated browsing; filters for date, city, provenance and action. |
+| `GET /api/recent` | Last 30 global browsing events. |
+| `GET /api/inventory` | Table metadata, estimated physical rows and disk. |
+| `GET /api/catalog` | Glovo Madrid sample if loaded. |
+| `GET /api/demo-catalog` | The demo's businesses/products, with provenance per field. |
+| `POST /api/events`, `/api/operations` | Acceptance into the browsing or telemetry queue. |
+| `POST /api/simulation/start`, `/stop` | Local fleet control. Start accepts `fleet`, `interval`, `seed`; stop receives `{}`. |
+| `GET /health` | Runs `SELECT 1` and checks the publisher status for the healthcheck. |
 
-### Lecturas del panel
+### Dashboard reads
 
-- Activos, entregados, cancelados e importe: último estado de cada pedido. Fuera de plazo: pedidos todavía activos cuyo plazo ficticio ha pasado.
-- Lista limitada a 200 pedidos; las métricas consultan el conjunto del run. `truncated` avisa del límite conservador.
-- El plano SVG proyecta latitud/longitud. La línea utiliza solo las posiciones recibidas del pedido actual; no calcula rutas de calles.
-- GPS por 5 s: `uniqExact(event_id)` en los dos últimos minutos. Navegación: recuentos por acción, no conversión de esos pedidos.
+- Active, delivered, cancelled and amount: latest state of each order. Late: orders still active whose fictional deadline has passed.
+- List limited to 200 orders; the metrics query the whole run. `truncated` warns about the conservative limit.
+- The SVG plane projects latitude/longitude. The line uses only the positions received for the current order; it does not compute street routes.
+- GPS per 5 s: `uniqExact(event_id)` over the last two minutes. Browsing: counts by action, not conversion of those orders.
 
-Tracking se vuelve a consultar tras completar el ciclo anterior y esperar 2 s; navegación, aproximadamente cada 10 s. No se solapan ciclos de polling. El inventario se carga al abrir la página.
+Tracking is queried again after completing the previous cycle and waiting 2 s; browsing, about every 10 s. Polling cycles do not overlap. The inventory is loaded when the page opens.
 
-El panel local permite registrar una búsqueda manual. `event_time` es la hora de acción; `ingested_at` mide aceptación en API. Su diferencia no mide publicación completa. La antigüedad de la posición muestra el retraso visible; si falla una consulta, se conservan los datos anteriores y se avisa.
+The local dashboard can record a manual search. `event_time` is the action time; `ingested_at` measures acceptance by the API. Their difference does not measure complete publishing. Position age shows the visible delay; if a query fails, the previous data is kept and a warning is shown.
 
 <!-- page -->
-# 12. Compartición: Vercel y Cloudflare
+# 12. Sharing: Vercel and Cloudflare
 
-### Camino de una consulta remota
+### Path of a remote query
 
 ```text
-Compañero -> Vercel: HTML + JavaScript + función GET
-         -> Cloudflare: URL HTTPS temporal
-         -> share-gateway: token y rutas permitidas
-         -> API Atlas local -> ClickHouse local
+Teammate -> Vercel: HTML + JavaScript + GET function
+         -> Cloudflare: temporary HTTPS URL
+         -> share-gateway: token and allowed routes
+         -> local Atlas API -> local ClickHouse
 ```
 
-Vercel aloja la interfaz y el proxy por petición. El servidor ClickHouse, el archivo SQLite y los hilos permanentes siguen en Docker en el ordenador de Jere. Si el ordenador duerme o se detiene el túnel, la web permanece publicada y deja de recibir actualizaciones.
+Vercel hosts the interface and the per-request proxy. The ClickHouse server, the SQLite file and the permanent threads remain in Docker on Jere's computer. If the computer sleeps or the tunnel stops, the website stays published and stops receiving updates.
 
-### Archivos y protección del acceso
+### Files and access protection
 
-`scripts/build_shared.mjs` copia los tres assets, marca el modo de lectura y retira controles de inicio/parada e inserción. `api/proxy.js` solo acepta GET y rutas permitidas; utiliza `ATLAS_SHARE_ORIGIN` y `ATLAS_SHARE_TOKEN` desde variables del servidor. El token no se añade al JavaScript del navegador.
+`scripts/build_shared.mjs` copies the three assets, sets read mode and removes the start/stop and insert controls. `api/proxy.js` only accepts GET and allowed routes; it uses `ATLAS_SHARE_ORIGIN` and `ATLAS_SHARE_TOKEN` from server variables. The token is not added to the browser JavaScript.
 
-`atlas/share.py` exige el token, valida UUIDs/parámetros, limita la respuesta a 2 MiB y rechaza POST, PUT, PATCH y DELETE. Reduce los campos de estado/simulación y no devuelve errores internos detallados.
+`atlas/share.py` requires the token, validates UUIDs/parameters, limits the response to 2 MiB and rejects POST, PUT, PATCH and DELETE. It reduces the status/simulation fields and does not return detailed internal errors.
 
-Rutas públicas admitidas: `simulation`, `operations`, `status`, `track`, `summary`, `inventory`, `catalog`. La compartición limita summary a Madrid y a `synthetic`/`demo_live`; no expone todos los filtros de la API local. Tampoco publica `recent` o `demo-catalog`.
+Allowed public routes: `simulation`, `operations`, `status`, `track`, `summary`, `inventory`, `catalog`. Sharing limits summary to Madrid and to `synthetic`/`demo_live`; it does not expose all the filters of the local API. Nor does it publish `recent` or `demo-catalog`.
 
-| Caché del gateway | Duración |
+| Gateway cache | Duration |
 |---|---|
-| Seguimiento, estado y recorrido | 1,5 s |
-| Navegación | 10 s |
-| Inventario y catálogo | 60 s |
+| Tracking, status and path | 1.5 s |
+| Browsing | 10 s |
+| Inventory and catalog | 60 s |
 
-Máximo 128 claves, con bloqueos separados por endpoint para que inventario no bloquee GPS. La función corta la espera a los 12 s; su duración máxima configurada en Vercel es 30 s. Estas cachés pueden añadir demora.
+Maximum 128 keys, with separate locks per endpoint so that the inventory does not block GPS. The function cuts the wait at 12 s; its maximum duration configured on Vercel is 30 s. These caches can add delay.
 
-### Condiciones de la demo compartida
+### Conditions of the shared demo
 
-El enlace es visible para quien lo tenga. Transporta datos ficticios, agregados y catálogo público por Vercel/Cloudflare. ClickHouse mantiene su puerto local; la API de escritura tampoco se abre por el túnel.
+The link is visible to anyone who has it. It carries fictional data, aggregates and the public catalog through Vercel/Cloudflare. ClickHouse keeps its local port; the write API is not opened through the tunnel either.
 
-La URL `trycloudflare.com` cambia al crear otro túnel: hay que actualizar `ATLAS_SHARE_ORIGIN` y desplegar. Secretos en `data/sharing/` y variables sensibles de Vercel; código permitido en `.vercelignore`. Procedimiento completo: `docs/COMPARTIR-VERCEL.md`. No hay disponibilidad independiente del portátil.
+The `trycloudflare.com` URL changes when another tunnel is created: `ATLAS_SHARE_ORIGIN` must be updated and redeployed. Secrets live in `data/sharing/` and in sensitive Vercel variables; allowed code in `.vercelignore`. Full procedure: `docs/COMPARTIR-VERCEL.md`. There is no availability independent of the laptop.
 
-El Compose actual usa credenciales de demostración locales; no implementa el reparto de roles de una aplicación de producción. Referencias: [funciones de Vercel](https://vercel.com/docs/functions/limitations) y [Quick Tunnels de Cloudflare](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+The current Compose uses local demo credentials; it does not implement the role separation of a production application. References: [Vercel functions](https://vercel.com/docs/functions/limitations) and [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
 
 <!-- page -->
-# 13. Arranque reproducible para compañeros
+# 13. Reproducible start for teammates
 
-### Requisitos y ruta pequeña
+### Requirements and small path
 
-Docker con Compose v2 y Python 3.10 o posterior en el ordenador; los contenedores usan Python 3.12. Obtener el código del repositorio, incluyendo los cambios de la PR 1/rama `codex/actualizacion-clickstream-eleme` mientras no esté integrada.
+Docker with Compose v2 and Python 3.10 or later on the computer; the containers use Python 3.12. Get the code from the repository, including the changes in PR 1/branch `codex/actualizacion-clickstream-eleme` while it is not merged.
 
-Desde la carpeta del proyecto:
+From the project folder:
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
@@ -448,11 +448,11 @@ python3 scripts/check_atlas.py
 python3 scripts/check_operations.py
 ```
 
-Abrir `http://127.0.0.1:8001/`. Iniciar la simulación; seleccionar un repartidor y comprobar hora, coordenadas y recorrido. Registrar una búsqueda manual y elegir la procedencia de acciones manuales para localizarla.
+Open `http://127.0.0.1:8001/`. Start the simulation; select a courier and check time, coordinates and path. Record a manual search and choose the manual-actions source to find it.
 
-Las pruebas HTTP necesitan la API y ClickHouse; añaden filas de comprobación identificadas. Las unitarias prueban contratos/cola/rutas sin descargar históricos. En una máquina nueva el catálogo será ficticio y las fuentes públicas no aparecerán hasta cargarlas.
+The HTTP tests need the API and ClickHouse; they add labelled check rows. The unit tests check contracts/queue/routes without downloading historical data. On a new machine the catalog will be fictional and the public sources will not appear until they are loaded.
 
-### Cargas opcionales pequeñas
+### Optional small loads
 
 ```bash
 python3 scripts/atlas.py generate --events 10000 --batch 1000 --seed 42
@@ -460,120 +460,120 @@ python3 scripts/atlas.py status
 python3 scripts/operations.py --positions 10000 --fleet 12 --seed 42
 ```
 
-Esperar a `pending=0` antes de comprobar cargas o medir. Para reproducir navegación exactamente, guardar y reutilizar `--run-id`, `--start`, `--seed` y `--events`: sin fecha fija el generador elige otra. La carga GPS calcula un run determinista con fecha, semilla, flota y número de posiciones.
+Wait for `pending=0` before checking loads or measuring. To reproduce browsing exactly, save and reuse `--run-id`, `--start`, `--seed` and `--events`: without a fixed date the generator chooses another one. The GPS load computes a deterministic run from date, seed, fleet and number of positions.
 
-### Logs, cambios y parada
+### Logs, changes and stopping
 
 ```bash
 docker compose -f compose.yaml --profile atlas logs --tail 60 atlas
 docker compose -f compose.yaml --profile atlas stop
 ```
 
-Repetir `up ... --build --wait` tras cambios de Python, SQL o web. El simulador deberá iniciarse de nuevo. Conservar los volúmenes; `down -v` elimina el almacenamiento de la base y la cola.
+Repeat `up ... --build --wait` after changes to Python, SQL or web files. The simulator will need to be started again. Keep the volumes; `down -v` deletes the database and queue storage.
 
-Compartir requiere preparar los archivos privados y arrancar el Compose adicional, según la guía de Vercel. **No lanzar el fichero de compartición en una instalación nueva antes de crear `data/sharing/gateway.env`.**
+Sharing requires preparing the private files and starting the additional Compose file, as the Vercel guide explains. **Do not launch the sharing file on a new installation before creating `data/sharing/gateway.env`.**
 
 <!-- page -->
-# 14. Consultas y diagnóstico que debéis conocer
+# 14. Queries and diagnostics you should know
 
-### Tres consultas para demostrar el modelo
+### Three queries to demonstrate the model
 
 ```sql
--- Recuento lógico por tipo: lectura de conjuntos de IDs.
+-- Logical count by type: reading ID sets.
 SELECT event_type, sum(events) AS events
 FROM delivery_atlas.app_daily_counts
 WHERE city_id = 'madrid' AND source_kind = 'synthetic'
 GROUP BY event_type;
 
--- Posiciones de la última ejecución, usando su UUID real.
+-- Positions of the last run, using its real UUID.
 SELECT courier_id, latitude, longitude, event_time
 FROM delivery_atlas.courier_latest
 WHERE simulation_run_id = {run:UUID};
 
--- Motor y tamaño: metadatos, no recuento de usuarios.
+-- Engine and size: metadata, not a count of users.
 SELECT database, name, engine, total_rows
 FROM system.tables
 WHERE database IN ('delivery', 'delivery_atlas');
 ```
 
-El parámetro `{run:UUID}` necesita el run de `GET /api/simulation`; el cliente Python pasa `param_run`. Los filtros de lectura de Atlas se parametrizan en lugar de concatenar valores del usuario.
+The `{run:UUID}` parameter needs the run from `GET /api/simulation`; the Python client passes `param_run`. Atlas read filters are parameterized instead of concatenating user values.
 
-### Leer un fallo por capas
+### Reading a failure layer by layer
 
-| Síntoma | Comprobación y significado |
+| Symptom | Check and meaning |
 |---|---|
-| No aparecen repartidores | Ver `GET /api/simulation`; iniciar desde la demo local. Un reinicio recuerda datos pero no reactiva la generación. |
-| Aceptado, pero aún no visible | Ver pendientes y fase en `/api/status`; 202 confirma SQLite, no publicación. |
-| Pendientes crecen / error del publicador | Revisar salud de ClickHouse y logs Atlas. El publicador reintenta; la cola tiene un límite. |
-| Fuente pública vacía en otro equipo | Los archivos masivos y volúmenes no viajan con Git. La simulación funciona igualmente. |
-| Vercel deja de actualizar | Comprobar ordenador, Docker, túnel y URL de origen. Los controles pertenecen al panel local. |
-| Conteos físicos distintos | Reintentos/fusiones pueden alterar filas físicas. Consultar `FINAL`, IDs únicos o vistas lógicas. |
+| No couriers appear | See `GET /api/simulation`; start from the local demo. A restart remembers data but does not reactivate generation. |
+| Accepted, but not visible yet | See pending and phase in `/api/status`; 202 confirms SQLite, not publishing. |
+| Pending grows / publisher error | Check ClickHouse health and the Atlas logs. The publisher retries; the queue has a limit. |
+| Public source empty on another machine | The massive files and volumes do not travel with Git. The simulation works anyway. |
+| Vercel stops updating | Check the computer, Docker, tunnel and origin URL. The controls belong to the local dashboard. |
+| Different physical counts | Retries/merges can change physical rows. Query with `FINAL`, unique IDs or logical views. |
 
-### CRUD requerido por la asignatura
+### CRUD required by the course
 
-`python3 scripts/crud_demo.py` demuestra INSERT, SELECT, ALTER UPDATE y ALTER DELETE en `delivery.demo_events`, esperando la finalización de las mutaciones. La tabla es de ensayo, separada del flujo Atlas.
+`python3 scripts/crud_demo.py` demonstrates INSERT, SELECT, ALTER UPDATE and ALTER DELETE on `delivery.demo_events`, waiting for the mutations to finish. The table is a scratch table, separate from the Atlas flow.
 
-El script pausa temporalmente merges de tres tablas históricas grandes si existen y los reactiva en `finally`. Tenerlo en cuenta al usarlo durante cargas. Los estados de pedido de la aplicación se representan insertando otra foto; no se actualiza cada GPS con una mutación.
+The script temporarily pauses merges on three large historical tables if they exist and re-enables them in `finally`. Keep this in mind when using it during loads. The application's order statuses are represented by inserting another snapshot; each GPS row is not updated with a mutation.
 
 <!-- page -->
-# 15. Evidencia, límites y relación con BD2
+# 15. Evidence, limits and relation to BD2
 
-**Estas son comprobaciones guardadas del 7/10/2026.** No sustituyen una prueba nueva bajo carga ni una instalación en otro ordenador.
+**These are saved checks from 7 October 2026.** They do not replace a new test under load or an installation on another computer.
 
-| Comprobación | Resultado y alcance |
+| Check | Result and scope |
 |---|---|
-| Navegación Atlas | 1.000.000 eventos sintéticos verificados por run. Envío a API/cola: 323,5853 s; no es throughput aislado de ClickHouse. |
-| GPS histórico | 100000 posiciones y 5965 estados verificados en ClickHouse. Envío de 105965 registros: 435,887 s con actividad concurrente. |
-| Reintento y contenido | Reconocimiento de duplicados; conflicto 409 si cambia el contenido del mismo ID. |
-| Recuperación | Evento pendiente recuperado tras paradas ordenadas y reinicio con volúmenes conservados. No prueba pérdida de disco. |
-| Fallo entre INSERTs | Reenvío de lote mixto: 4 posiciones físicas / 2 lógicas; 2 pedidos lógicos. No hay transacción entre tablas. |
-| Evento GPS antiguo | No sustituye a la posición de hora más reciente. Coordenada inválida: 400. |
-| Lectura local de flota | Tres muestras sin carga histórica concurrente: antigüedad máxima 1,761-2,279 s; consultas 0,177-0,855 s. |
-| Vercel | Siete rutas leídas; tiempos/posiciones avanzaron y una escritura devolvió 405. Se observó un 503 inicial recuperado. Última comprobación: 12 repartidores, antigüedad máxima 3,796 s en la consulta. |
+| Atlas browsing | 1,000,000 synthetic events verified by run. Sending to API/queue: 323.5853 s; not isolated ClickHouse throughput. |
+| Historical GPS | 100000 positions and 5965 statuses verified in ClickHouse. Sending 105965 records: 435.887 s with concurrent activity. |
+| Retry and content | Duplicates recognized; 409 conflict if the content of the same ID changes. |
+| Recovery | Pending event recovered after orderly shutdowns and a restart with volumes kept. It does not test disk loss. |
+| Failure between INSERTs | Resend of a mixed batch: 4 physical / 2 logical positions; 2 logical orders. There is no transaction across tables. |
+| Old GPS event | Does not replace the position with the more recent time. Invalid coordinate: 400. |
+| Local fleet read | Three samples without concurrent historical load: maximum data age 1.761-2.279 s; queries 0.177-0.855 s. |
+| Vercel | Seven routes read; times/positions advanced and a write returned 405. An initial 503 was observed and recovered. Last check: 12 couriers, maximum data age 3.796 s in the query. |
 
-### Un resultado que debemos explicar con honestidad
+### A result we must explain honestly
 
-El agregado exacto Atlas devolvió el mismo resultado que el detalle, pero su mediana fue **0,703 s**, frente a **0,498 s** del detalle en tres consultas por alternativa. Leer menos filas no garantizó menos tiempo: combinar conjuntos exactos tiene coste. El resultado más rápido del agregado OTTO pertenece a otro esquema/consulta y no demuestra una mejora de Atlas.
+The exact Atlas aggregate returned the same result as the detail table, but its median was **0.703 s**, vs **0.498 s** for the detail, over three queries per alternative. Reading fewer rows did not guarantee less time: combining exact sets has a cost. The faster result of the OTTO aggregate belongs to another schema/query and does not demonstrate an improvement for Atlas.
 
-### Qué podemos presentar al profesor
+### What we can present to the professor
 
-Contexto y modelo columnar; motores/particiones/vistas; instalación Docker; Python conectado por HTTP; datasets públicos y sintéticos etiquetados; ingesta, dashboard y CRUD; mediciones con condiciones; explicación de replicación y sharding como ampliaciones, sin afirmar que los ejecutamos.
+Context and columnar model; engines/partitions/views; Docker installation; Python connected over HTTP; public and labelled synthetic datasets; ingestion, dashboard and CRUD; measurements with their conditions; an explanation of replication and sharding as extensions, without claiming that we ran them.
 
-### Qué queda por resolver
+### What is still to be solved
 
-Miniapp comercial y enlace checkout-pedido; reproducción en otra máquina; retención/backup; pruebas sostenidas de demora con carga; evolución de esquema y, después, experimento con más nodos. La cola conserva payloads publicados y crece; no hay TTL de telemetría ni alta disponibilidad configurados.
+Commercial mini-app and checkout-order link; reproduction on another machine; retention/backup; sustained delay tests under load; schema evolution and, later, an experiment with more nodes. The queue keeps published payloads and grows; no telemetry TTL or high availability is configured.
 
-Evidencia: `docs/evidencia-atlas.json`, `evidencia-carga-gps.json`, `evidencia-tracking.json`, `evidencia-frescura.json`, `evidencia-sharing.json`, `evidencia-vercel.json`. La carpeta `tests/` contiene 11 métodos de prueba al revisar el código; este documento no vuelve a ejecutar las pruebas de integración ni los benchmarks.
+Evidence: `docs/evidencia-atlas.json`, `evidencia-carga-gps.json`, `evidencia-tracking.json`, `evidencia-frescura.json`, `evidencia-sharing.json`, `evidencia-vercel.json`. The `tests/` folder contained 11 test methods when the code was reviewed; this document does not rerun the integration tests or the benchmarks.
 
 <!-- page -->
-# 16. Mapa del código y cómo retomarlo en equipo
+# 16. Code map and how to pick it up as a team
 
-### Qué archivo tocar para cada cambio
+### Which file to touch for each change
 
-| Necesidad | Archivos principales |
+| Need | Main files |
 |---|---|
-| Añadir/validar una acción de navegación | `atlas/contract.py`, `sql/atlas.sql`; revisar generadores y tests. |
-| Cambiar campos GPS o pedido | `atlas/operations.py`, `sql/atlas_operations.sql`, simulador y consultas. Planificar migración. |
-| Cambiar aceptación, deduplicación o persistencia | `atlas/store.py`; comprobar conflictos, reinicios y reintentos. |
-| Cambiar lotes, rutas o fases del publicador | `atlas/server.py`, `atlas/clickhouse.py`. |
-| Cambiar flota, estados o coordenadas | `atlas/simulation.py`; `scripts/operations.py` reutiliza `Scenario`. |
-| Cambiar catálogo y procedencia | `atlas/catalog.py`, tablas `demo_*`; no atribuir precios ficticios a Glovo. |
-| Añadir métrica o visualización | SELECT en `atlas/clickhouse.py`, endpoint en `server.py`, componentes en `web/atlas-dashboard.*`. |
-| Construir miniapp comercial | Nuevos archivos web y `POST /api/events`; catálogo desde `/api/demo-catalog`. Coordinar el enlace con pedidos. |
-| Cambiar compartición | `atlas/share.py`, `api/proxy.js`, `scripts/build_shared.mjs`, `vercel.json`, `compose.share.yaml`. |
-| Revisar carga/consulta histórica | Importador correspondiente, `sql/schema.sql`, `sql/eleme.sql`, `dashboard.py`. |
+| Add/validate a browsing action | `atlas/contract.py`, `sql/atlas.sql`; review generators and tests. |
+| Change GPS or order fields | `atlas/operations.py`, `sql/atlas_operations.sql`, simulator and queries. Plan a migration. |
+| Change acceptance, deduplication or persistence | `atlas/store.py`; check conflicts, restarts and retries. |
+| Change batches, routes or publisher phases | `atlas/server.py`, `atlas/clickhouse.py`. |
+| Change fleet, statuses or coordinates | `atlas/simulation.py`; `scripts/operations.py` reuses `Scenario`. |
+| Change the catalog and provenance | `atlas/catalog.py`, `demo_*` tables; do not attribute fictional prices to Glovo. |
+| Add a metric or visualization | SELECT in `atlas/clickhouse.py`, endpoint in `server.py`, components in `web/atlas-dashboard.*`. |
+| Build the commercial mini-app | New web files and `POST /api/events`; catalog from `/api/demo-catalog`. Coordinate the link with orders. |
+| Change sharing | `atlas/share.py`, `api/proxy.js`, `scripts/build_shared.mjs`, `vercel.json`, `compose.share.yaml`. |
+| Review historical loading/querying | The corresponding importer, `sql/schema.sql`, `sql/eleme.sql`, `dashboard.py`. |
 
-### Ruta de incorporación
+### Onboarding path
 
-Jere puede explicar ingesta, SQL y pruebas. Anuar puede empezar por contrato, catálogo y cliente que registra acciones. Echenique puede empezar por las consultas que alimentan el panel, los avisos de demora y la reproducción local. Es una orientación de lectura; el reparto definitivo se acordará cuando os incorporéis.
+Jere can explain ingestion, SQL and tests. Anuar can start with the contract, the catalog and the client that records actions. Echenique can start with the queries that feed the dashboard, the delay warnings and the local reproduction. This is a reading guide; the final split will be agreed when you join.
 
-Antes de modificar una parte, identificar **qué representa su fila**, cómo se genera su ID, qué procedencia tiene y cómo se lee ante reintentos. Probar un cambio pequeño en la ruta local antes de desplegarlo. No hace falta cargar todos los históricos para trabajar sobre Atlas.
+Before modifying a part, identify **what its row represents**, how its ID is generated, what provenance it has and how it is read in the presence of retries. Test a small change on the local path before deploying it. There is no need to load all the historical data to work on Atlas.
 
-### Fuentes para profundizar
+### Sources to go deeper
 
-- Código ejecutable y DDL: `atlas/`, `sql/`, `api/`, Compose y scripts descritos aquí.
-- Reproducción: `docs/DEMO-TRACKING.md` y `COMPARTIR-VERCEL.md`.
-- Modelo y auditoría: `docs/DATOS-Y-TRACKING.md`, `ESTRUCTURA-BD.md` y `auditoria-esquemas.json`.
-- La guía PDF inicial del equipo es anterior al tracking; este documento describe el código revisado el 14/10.
+- Executable code and DDL: `atlas/`, `sql/`, `api/`, Compose and the scripts described here.
+- Reproduction: `docs/DEMO-TRACKING.md` and `COMPARTIR-VERCEL.md`.
+- Model and audit: `docs/DATOS-Y-TRACKING.md`, `ESTRUCTURA-BD.md` and `auditoria-esquemas.json`.
+- The team's initial PDF guide predates tracking; this document describes the code reviewed on 14 October.
 
-**Idea que todo el equipo debe poder explicar:** generamos/recibimos eventos, los confirmamos en una cola, publicamos su histórico y estados agregados en ClickHouse, y el dashboard consulta lo que realmente llegó a la base. Los datos públicos demuestran volumen; la simulación demuestra nuestra infraestructura operativa.
+**Idea the whole team must be able to explain:** we generate/receive events, confirm them in a queue, publish their history and aggregate states to ClickHouse, and the dashboard queries what actually reached the database. The public data demonstrates volume; the simulation demonstrates our operational infrastructure.

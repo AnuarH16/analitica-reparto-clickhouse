@@ -1,89 +1,89 @@
-# Plataforma ficticia de comida a domicilio: alcance y diseño
+# Fictional food-delivery platform: scope and design
 
-Estado a 7 de octubre: **infraestructura v1 implementada; miniapp y dashboard específico pendientes**. [API, contrato y SQL aplicado](INFRAESTRUCTURA-ATLAS.md), [responsabilidades del equipo](PLAN-EQUIPO.md). El documento de abajo conserva el diseño inicial del 5 de octubre como referencia de alcance; los pendientes de aquella fecha se contrastan con la guía v1.
+Status as of 7 October: **v1 infrastructure implemented; mini-app and dedicated dashboard pending**. [API, contract and applied SQL](INFRAESTRUCTURA-ATLAS.md), [team responsibilities](PLAN-EQUIPO.md). The document below keeps the initial design from 5 October as a scope reference; the items pending at that date are checked against the v1 guide.
 
-## Objetivo
+## Goal
 
-Crear una plataforma ficticia inspirada en Uber Eats/Glovo y su infraestructura de analítica de navegación. Debe recibir eventos, conservarlos, agregarlos y mostrarlos en un dashboard mientras llegan nuevos lotes. El caso permite diseñar con datos semirreales ahora y conectar fuentes reales compatibles en el futuro.
+Create a fictional platform inspired by Uber Eats/Glovo and its browsing analytics infrastructure. It must receive events, keep them, aggregate them and show them on a dashboard while new batches arrive. The case makes it possible to design with semi-real data now and to connect compatible real sources in the future.
 
-El entregable principal de BD2 es el modelo y funcionamiento de la base analítica, con un pequeño recorrido de aplicación para generar eventos. Las cuentas, cobros y asignación real de repartidores quedan fuera de este alcance.
+The main BD2 deliverable is the model and operation of the analytical database, with a small application path to generate events. Accounts, payments and real courier assignment are out of scope.
 
-## Recorrido mínimo de aplicación
+## Minimum application path
 
-1. Elegir una ciudad y explorar restaurantes.
-2. Buscar y filtrar resultados.
-3. Abrir un restaurante y su menú.
-4. Abrir un producto y añadirlo al carrito.
-5. Completar un pedido simulado o terminar la sesión.
+1. Choose a city and browse restaurants.
+2. Search and filter results.
+3. Open a restaurant and its menu.
+4. Open a product and add it to the cart.
+5. Complete a simulated order or end the session.
 
-Registrar por separado impresiones, clics, acciones de carrito y pedido simulado. Una impresión solo se registra si el elemento cumple el criterio de visibilidad definido por la aplicación; no se deduce de una etiqueta negativa de Ele.me. Un pedido simulado no es una venta real.
+Record impressions, clicks, cart actions and simulated orders separately. An impression is recorded only if the item meets the visibility criterion defined by the application; it is not inferred from a negative Ele.me label. A simulated order is not a real sale.
 
-## Arquitectura propuesta
+## Proposed architecture
 
 ```text
-Miniapp de reparto ─────┐
-Generador reproducible ├─→ API de eventos Python → validación → inserción por lotes
-Fuente real + adaptador┘                                      │
+Delivery mini-app ──────┐
+Reproducible generator  ├─→ Python event API → validation → batch insert
+Real source + adapter ──┘                                     │
                                                         ClickHouse
-                                                  eventos → agregados
+                                                  events → aggregates
                                                               │
                                                         API → dashboard
 ```
 
-Inicialmente basta una API Python y un nodo ClickHouse. Una cola externa o varios nodos solo se añaden si una medición identifica su necesidad o se eligen como experimento de clase. Definir límites de lote y cola, respuesta ante saturación y política de reintentos antes de aceptar un generador de alto volumen.
+Initially a Python API and one ClickHouse node are enough. An external queue or several nodes are only added if a measurement shows they are needed or they are chosen as a class experiment. Define batch and queue limits, the response to saturation and the retry policy before accepting a high-volume generator.
 
-## Contrato de eventos v1, pendiente de concretar en código
+## Event contract v1, still to be implemented in code
 
-| Campo | Función |
+| Field | Purpose |
 |---|---|
-| `schema_version` | Versión del formato para evolucionar sin reinterpretar eventos antiguos |
-| `event_id` | ID estable del evento, conservado en reintentos |
-| `event_time` / `ingested_at` | Momento del suceso y momento de entrada en la infraestructura |
-| `event_type` / `section` | Acción y lugar de la aplicación |
-| `session_id` / `user_id` | Identificadores de la sesión y usuario ficticio o seudónimo |
-| `restaurant_id` / `product_id` | Referencias opcionales según el evento |
-| `city_id` | Contexto geográfico, sin inventar nombres para códigos anónimos |
-| `source` / `source_kind` | Fuente y procedencia: `synthetic`, `demo_live`, `public_historical` o `historical_replay` |
-| `source_record_id` / `simulation_run_id` | Trazabilidad de origen o ejecución del generador |
+| `schema_version` | Format version, to evolve without reinterpreting old events |
+| `event_id` | Stable event ID, kept across retries |
+| `event_time` / `ingested_at` | When the event happened and when it entered the infrastructure |
+| `event_type` / `section` | Action and place in the application |
+| `session_id` / `user_id` | Identifiers of the session and of the fictional or pseudonymous user |
+| `restaurant_id` / `product_id` | Optional references depending on the event |
+| `city_id` | Geographic context, without inventing names for anonymous codes |
+| `source` / `source_kind` | Source and provenance: `synthetic`, `demo_live`, `public_historical` or `historical_replay` |
+| `source_record_id` / `simulation_run_id` | Traceability to the origin or to the generator run |
 
-Los IDs de fuentes independientes requieren un espacio de nombres; una coincidencia numérica no demuestra que sean el mismo usuario o producto. Conservar los campos desconocidos como ausentes y registrar eventos rechazados con su motivo.
+IDs from independent sources need a namespace; a numeric match does not prove that they are the same user or product. Keep unknown fields as missing and record rejected events with their reason.
 
-`event_id` por sí solo no evita duplicados en `MergeTree`: antes de activar agregados incrementales hay que implementar y probar cómo se detectan reintentos y cómo se cuentan eventos únicos. No prometer entrega exactamente una vez sin comprobar ese mecanismo.
+`event_id` alone does not prevent duplicates in `MergeTree`: before enabling incremental aggregates, how retries are detected and how unique events are counted must be implemented and tested. Do not promise exactly-once delivery without verifying that mechanism.
 
-## Papel de los datos actuales
+## Role of the current data
 
-| Fuente | Uso permitido en este diseño |
+| Source | Allowed use in this design |
 |---|---|
-| Glovo FooDI-ML | Posible base de catálogo semirreal, con atribución y revisión de condiciones; los clics generados sobre él serían simulados |
-| Ele.me | Caso real separado de recomendaciones; inspirar campos y distribuciones de prueba, identificando cualquier distribución sintetizada |
-| OTTO | Referencia de clickstream, replay y experimento de volumen; adaptador solo para acciones y campos equivalentes |
-| REES46 | Referencia de vistas, carrito, compra y filtros temporales; mantener las diferencias semánticas |
-| Escenarios OTTO derivados | Prueba de estrés ya ejecutada, separada de la carga que genere la nueva aplicación |
+| Glovo FooDI-ML | Possible base for a semi-real catalog, with attribution and a review of its terms; clicks generated on it would be simulated |
+| Ele.me | Separate real case of recommendations; inspires fields and test distributions, labelling any synthesized distribution |
+| OTTO | Reference for clickstream, replay and the volume experiment; adapter only for equivalent actions and fields |
+| REES46 | Reference for views, cart, purchase and time filters; keep the semantic differences |
+| Derived OTTO scenarios | Stress test already run, separate from the load generated by the new application |
 
-Ele.me contiene muestras para aprendizaje, no un registro completo de cada paso de una sesión: sus negativos no se transforman en impresiones, ni sus historiales repetidos en nuevos clics. Las fuentes permanecen en sus tablas originales para conservar evidencia. Un adaptador común solo admite eventos con correspondencia semántica comprobada.
+Ele.me contains samples for learning, not a complete record of every step of a session: its negatives are not turned into impressions, nor its repeated histories into new clicks. The sources stay in their original tables to preserve evidence. A common adapter only accepts events with a verified semantic correspondence.
 
-No se atribuye a Glovo España el comportamiento de usuarios de Ele.me/OTTO/REES46. Si el generador combina un catálogo y usuarios ficticios, el manifiesto lo declara como datos semirreales y documenta todas las suposiciones.
+The behaviour of Ele.me/OTTO/REES46 users is not attributed to Glovo Spain. If the generator combines a catalog with fictional users, the manifest declares it as semi-real data and documents every assumption.
 
-## Qué mostraría el dashboard
+## What the dashboard would show
 
-- Eventos y clics por tiempo, ciudad, sección y tipo.
-- Sesiones y acciones de navegación, con definición explícita de sesión.
-- Recorrido por etapas, contando sesiones únicas y respetando el orden temporal y una ventana definida. Una razón entre recuentos de clics y pedidos no basta para medir conversión.
-- Tasa de entrada, retraso entre `event_time` e `ingested_at`, rechazos y reintentos.
-- Volumen, tamaño en disco y comparación entre consulta al histórico y al agregado, con respuesta idéntica verificada.
-- Filtro visible por procedencia; las métricas simuladas no se presentan como demanda real del mercado.
+- Events and clicks by time, city, section and type.
+- Sessions and browsing actions, with an explicit definition of session.
+- A stage-by-stage path, counting unique sessions and respecting time order and a defined window. A ratio between click and order counts is not enough to measure conversion.
+- Input rate, delay between `event_time` and `ingested_at`, rejections and retries.
+- Volume, size on disk and a comparison between querying the history and the aggregate, with an identical answer verified.
+- A visible provenance filter; simulated metrics are not presented as real market demand.
 
-## Criterios de aceptación antes de presentarlo como terminado
+## Acceptance criteria before presenting it as finished
 
-1. Un recorrido manual llega desde la miniapp hasta ClickHouse y aparece en el dashboard.
-2. El generador tiene semilla, parámetros y manifiesto de ejecución; reproduce la misma carga lógica y documenta horarios, sesiones y probabilidades inventados.
-3. Se comprueban filas recibidas, aceptadas, rechazadas y duplicadas, incluyendo un reintento deliberado. Los reintentos no aumentan los eventos lógicos del dashboard.
-4. Una carga grande se ejecuta y mide realmente: tasa efectiva, latencia de consulta y retraso de visualización, condiciones y recursos. No hay aún un objetivo de rendimiento alcanzado para esta plataforma.
-5. Histórico y agregado responden a la misma consulta con resultados iguales. Guardar tiempo, filas y bytes leídos; no trasladar los benchmarks anteriores a una tabla distinta.
-6. Un compañero reproduce la ruta principal siguiendo las guías, sin descargar datos durante la exposición.
+1. A manual path goes from the mini-app to ClickHouse and appears on the dashboard.
+2. The generator has a seed, parameters and a run manifest; it reproduces the same logical load and documents the invented schedules, sessions and probabilities.
+3. Received, accepted, rejected and duplicate rows are checked, including a deliberate retry. Retries do not increase the logical events on the dashboard.
+4. A large load is actually run and measured: effective rate, query latency and display delay, conditions and resources. There is no performance target reached for this platform yet.
+5. History and aggregate answer the same query with equal results. Save time, rows and bytes read; do not carry earlier benchmarks over to a different table.
+6. A teammate reproduces the main path by following the guides, without downloading data during the talk.
 
-## Incorporación futura de datos reales
+## Future integration of real data
 
-Solicitar formato, campos disponibles, significado de acciones, zona horaria, estabilidad de IDs y condiciones de uso. Implementar un adaptador versionado y comprobar una muestra antes de publicar datos completos. Si faltan campos para una métrica, deshabilitarla o señalar su cobertura; no completarlos con hechos inventados.
+Ask for the format, available fields, meaning of the actions, time zone, ID stability and terms of use. Implement a versioned adapter and check a sample before publishing complete data. If fields are missing for a metric, disable it or state its coverage; do not fill them with invented facts.
 
-El contrato reduce cambios en el dashboard, pero no garantiza aceptar cualquier fichero sin adaptar nada. La incorporación se comprueba comparando recuentos, procedencia y significado con la fuente. La infraestructura se considera preparada cuando ese procedimiento se haya implementado y ensayado.
+The contract reduces changes to the dashboard, but it does not guarantee accepting any file without adapting anything. Integration is checked by comparing counts, provenance and meaning with the source. The infrastructure is considered ready when that procedure has been implemented and rehearsed.

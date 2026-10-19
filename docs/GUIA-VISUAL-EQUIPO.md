@@ -1,87 +1,87 @@
-# Delivery Atlas: guía visual para entenderlo rápido
+# Delivery Atlas: visual guide to understand it quickly
 
-Para Jere, Anuar y Echenique. Revisión: 14/10/2026. Resumen del documento técnico; los recuentos y la publicación citados se comprobaron el 7/10. No verifica que el laboratorio esté encendido hoy.
+For Jere, Anuar and Echenique. Revision: 14 October 2026. Summary of the technical document; the counts and the publication cited were verified on 7 October. It does not check that the lab is running today.
 
-## 1. Qué estamos haciendo
+## 1. What we are doing
 
-Construimos una plataforma ficticia de comida a domicilio: guardamos eventos en ClickHouse y mostramos un dashboard con repartidores que se mueven, pedidos y contadores.
+We are building a fictional food-delivery platform: we store events in ClickHouse and show a dashboard with moving couriers, orders and counters.
 
-**Fuentes públicas:** OTTO y REES46 aportan cientos de millones de eventos históricos. Ele.me aporta muestras de recomendaciones; Glovo, productos de catálogo. Sirven para estudiar volumen y consultas. No comparten usuarios ni IDs entre sí.
+**Public sources:** OTTO and REES46 provide hundreds of millions of historical events. Ele.me provides recommendation samples; Glovo, catalog products. They are used to study volume and queries. They share no users or IDs with each other.
 
-**Nuestro escenario:** Madrid, 12 repartidores simulados por defecto, pedidos e importes ficticios y acciones de navegación generadas o manuales. Sirve para demostrar nuestra infraestructura en funcionamiento.
+**Our scenario:** Madrid, 12 simulated couriers by default, fictional orders and amounts, and generated or manual browsing actions. It is used to demonstrate our infrastructure working.
 
-ClickHouse no captura clics solo: nuestro código crea o recibe registros y la base permite consultarlos. El tracking se simula, pero el mapa lee posiciones que han pasado por la cola y ClickHouse.
+ClickHouse does not capture clicks on its own: our code creates or receives records and the database makes them queryable. Tracking is simulated, but the map reads positions that have gone through the queue and ClickHouse.
 
-**Ya tenemos:** base, ingesta, simulación, dashboard y web compartida.
-**Falta:** miniapp comercial con checkout conectado a un pedido y reproducción comprobada en otro ordenador.
+**We already have:** database, ingestion, simulation, dashboard and a shared website.
+**Missing:** a commercial mini-app with checkout connected to an order, and a verified reproduction on another computer.
 
-## 2. Cómo se conecta todo
+## 2. How everything connects
 
 ```mermaid
 flowchart TD
-  S[Simulador: GPS y estados] --> V[Validación: API Python]
-  M[Acción manual: búsqueda en la web] --> V
-  V --> Q[SQLite: cola de eventos pendientes]
-  Q --> P[Publicador: envía lotes]
-  P --> C[ClickHouse: histórico y últimos estados]
-  C --> R[API Python: lectura de resultados]
-  R --> D[Dashboard: mapa, pedidos y contadores]
+  S[Simulator: GPS and statuses] --> V[Validation: Python API]
+  M[Manual action: search on the website] --> V
+  V --> Q[SQLite: queue of pending events]
+  Q --> P[Publisher: sends batches]
+  P --> C[ClickHouse: history and latest states]
+  C --> R[Python API: reading results]
+  R --> D[Dashboard: map, orders and counters]
 ```
 
-Las flechas muestran el recorrido de los datos. El dashboard pide resultados a la API, que consulta ClickHouse. Validación y lectura pertenecen al mismo programa; el simulador integrado utiliza directamente su validación y cola.
+The arrows show the path of the data. The dashboard asks the API for results, and the API queries ClickHouse. Validation and reading belong to the same program; the built-in simulator uses its validation and queue directly.
 
-- **API:** la puerta de entrada y de consulta.
-- **SQLite:** sala de espera persistente.
-- **Publicador:** envía varios registros juntos.
-- **ClickHouse:** almacena y calcula lo que consultamos.
-- **Dashboard:** representa esos resultados.
+- **API:** the entry point for writes and queries.
+- **SQLite:** persistent waiting room.
+- **Publisher:** sends several records together.
+- **ClickHouse:** stores and computes what we query.
+- **Dashboard:** displays those results.
 
-Docker arranca y conecta los servicios. Hay un solo nodo ClickHouse; tener API y cola no añade nodos de esa base de datos.
+Docker starts and connects the services. There is a single ClickHouse node; having an API and a queue does not add nodes to that database.
 
-## 3. Qué guardamos y qué vemos
+## 3. What we store and what we see
 
-| Tabla | Una fila representa | En el panel |
+| Table | One row represents | On the dashboard |
 |---|---|---|
-| `app_events` | Una acción: buscar, abrir o añadir al carrito | Recuentos de navegación |
-| `order_events` | La foto de un pedido en un estado | Activos, entregados, cancelados e importe ficticio |
-| `courier_positions` | Una posición del repartidor, con ID y hora | Marcador y recorrido del pedido |
+| `app_events` | An action: search, open or add to cart | Browsing counts |
+| `order_events` | A snapshot of an order in one status | Active, delivered, cancelled and fictional amount |
+| `courier_positions` | A courier position, with ID and time | Marker and path of the order |
 
-**Ejemplo de una posición nueva:** el simulador mueve un repartidor, la validación acepta el registro en la cola, el publicador lo inserta y una consulta posterior actualiza el mapa.
+**Example of a new position:** the simulator moves a courier, validation accepts the record into the queue, the publisher inserts it and a later query updates the map.
 
-Aceptar en cola no significa que ya se vea. Si el mismo evento se reenvía con el mismo ID y contenido, las consultas lógicas evitan contarlo como otro. Una posición antigua que llegue tarde no sustituye a una posición de hora más reciente.
+Accepted into the queue does not mean visible yet. If the same event is resent with the same ID and content, the logical queries avoid counting it as another one. An old position that arrives late does not replace a position with a more recent time.
 
-Hay dos bases lógicas en el mismo servidor: `delivery` para históricos y `delivery_atlas` para nuestra plataforma. Los clics simulados y los pedidos son escenarios independientes: no calculamos una conversión comercial entre ellos.
+There are two logical databases on the same server: `delivery` for historical data and `delivery_atlas` for our platform. Simulated clicks and orders are independent scenarios: we do not compute a commercial conversion between them.
 
-Generación solicitada cada 2 s; el panel consulta después de terminar su lectura y esperar 2 s. La demora puede ser mayor. El mapa representa coordenadas ficticias, no calles ni GPS de repartidores reales.
+Generation is requested every 2 s; the dashboard queries after finishing its read and waiting 2 s. The delay can be longer. The map shows fictional coordinates, not streets or the GPS of real couriers.
 
-## 4. Cómo empezar juntos
+## 4. How to get started together
 
-**Ver:** abrir https://delivery-atlas-demo.vercel.app (solo lectura). Depende de que el ordenador de Jere, Docker y el túnel estén activos.
+**View:** open https://delivery-atlas-demo.vercel.app (read only). It depends on Jere's computer, Docker and the tunnel being up.
 
-**Ejecutar localmente:** obtener el código de la rama `codex/actualizacion-clickstream-eleme` mientras la PR no esté integrada. Con Docker/Compose, desde la carpeta del proyecto:
+**Run locally:** get the code from the `codex/actualizacion-clickstream-eleme` branch while the PR is not merged. With Docker/Compose, from the project folder:
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
 ```
 
-Abrir http://127.0.0.1:8001/, iniciar la simulación, elegir un repartidor y observar cómo cambian hora y coordenadas. La demo pequeña no necesita descargar los históricos masivos.
+Open http://127.0.0.1:8001/, start the simulation, choose a courier and watch the time and coordinates change. The small demo does not need to download the massive historical data.
 
-**Anuar: por dónde empezar.** Entender qué campos tiene una acción y cómo se envía. Leer `atlas/contract.py` y el botón manual del dashboard. Siguiente aportación posible: miniapp comercial.
+**Anuar: where to start.** Understand which fields an action has and how it is sent. Read `atlas/contract.py` and the dashboard's manual button. Possible next contribution: the commercial mini-app.
 
-**Echenique: por dónde empezar.** Seguir qué consulta alimenta cada métrica y comprobar el panel en su ordenador. Leer `atlas/clickhouse.py` y `web/atlas-dashboard.js`.
+**Echenique: where to start.** Follow which query feeds each metric and check the dashboard on his computer. Read `atlas/clickhouse.py` and `web/atlas-dashboard.js`.
 
-**Jere + Rayo:** apoyar dudas de base, ingesta y simulación. Estas son rutas de incorporación; el reparto definitivo se acordará juntos.
+**Jere + Rayo:** help with questions about the database, ingestion and simulation. These are onboarding paths; the final split will be agreed together.
 
-### Cómo llega una consulta compartida
+### How a shared query arrives
 
 ```mermaid
 flowchart LR
-  W[Web Vercel] --> T[Túnel Cloudflare]
-  T --> G[Acceso de solo lectura]
-  G --> A[API local]
-  A --> C[ClickHouse local]
+  W[Vercel website] --> T[Cloudflare tunnel]
+  T --> G[Read-only access]
+  G --> A[Local API]
+  A --> C[Local ClickHouse]
 ```
 
-ClickHouse y el simulador siguen en el ordenador de Jere. Los controles de iniciar/parar están en la demo local.
+ClickHouse and the simulator stay on Jere's computer. The start/stop controls are in the local demo.
 
-**Guía completa:** `docs/DOCUMENTO-TECNICO-EQUIPO.md` y su PDF de 17 páginas. Instalación detallada: `docs/DEMO-TRACKING.md`. Compartición: `docs/COMPARTIR-VERCEL.md`.
+**Full guide:** `docs/DOCUMENTO-TECNICO-EQUIPO.md` and its 17-page PDF. Detailed installation: `docs/DEMO-TRACKING.md`. Sharing: `docs/COMPARTIR-VERCEL.md`.

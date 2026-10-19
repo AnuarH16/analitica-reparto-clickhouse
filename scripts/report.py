@@ -12,7 +12,7 @@ OUTPUT = ROOT / "docs" / "RESULTADOS.md"
 
 
 def fmt(value: int) -> str:
-    return f"{int(value):,}".replace(",", ".")
+    return f"{int(value):,}"
 
 
 def gib(value: int) -> str:
@@ -33,7 +33,7 @@ def main() -> None:
     scale = json.loads(SCALE_REPORT.read_text())
     benchmark = json.loads(QUERY_REPORT.read_text())
     if set(manifest) != set(MONTHS):
-        raise RuntimeError("El manifiesto REES46 no contiene los siete meses")
+        raise RuntimeError("The REES46 manifest does not contain the seven months")
     months = [manifest[month] for month in MONTHS]
     rees_total = sum(int(item["rows"]) for item in months)
     rees_views = sum(int(item["views"]) for item in months)
@@ -41,30 +41,30 @@ def main() -> None:
     rees_purchases = sum(int(item["purchases"]) for item in months)
     otto_total = int(benchmark["counts"]["otto_real"])
     if int(benchmark["counts"]["rees46_real"]) != rees_total:
-        raise RuntimeError("REES46 en el benchmark y el manifiesto no coinciden")
+        raise RuntimeError("REES46 in the benchmark and in the manifest do not match")
     if int(benchmark["counts"]["scale_derived"]) != int(scale["stress_rows"]):
-        raise RuntimeError("La tabla de estrés y el benchmark no coinciden")
+        raise RuntimeError("The stress table and the benchmark do not match")
 
     lines = [
-        "# Resultados medidos en este equipo", "",
-        f"Fecha UTC del benchmark: {benchmark['measured_at_utc']}.", "",
-        "## Procedencia y magnitud", "",
-        f"- OTTO: **{fmt(otto_total)} eventos reales**, entre ellos **194.720.954 clics**. Fuente: [publicación OTTO](https://github.com/otto-de/recsys-dataset).",
-        f"- REES46: **{fmt(rees_total)} eventos reales** de siete meses. Fuente: [publicación REES46](https://data.rees46.com/).",
-        f"  - Desglose: **{fmt(rees_views)} vistas**, **{fmt(rees_carts)} carritos** y **{fmt(rees_purchases)} compras**. Las vistas no son clics OTTO.",
-        f"- Suma aritmética de ambos archivos reales: **{fmt(otto_total + rees_total)} filas** de **dos poblaciones distintas**; no son un único clickstream.",
-        f"- Prueba de estrés: **{fmt(scale['stress_rows'])} filas derivadas**, cinco escenarios creados desde OTTO; no representan usuarios ni eventos nuevos.",
-        "", "| Archivo REES46 | Eventos | Vistas | Carritos | Compras | Comprimido |", "|---|---:|---:|---:|---:|---:|",
+        "# Results measured on this machine", "",
+        f"Benchmark date (UTC): {benchmark['measured_at_utc']}.", "",
+        "## Provenance and size", "",
+        f"- OTTO: **{fmt(otto_total)} real events**, including **194,720,954 clicks**. Source: [OTTO publication](https://github.com/otto-de/recsys-dataset).",
+        f"- REES46: **{fmt(rees_total)} real events** over seven months. Source: [REES46 publication](https://data.rees46.com/).",
+        f"  - Breakdown: **{fmt(rees_views)} views**, **{fmt(rees_carts)} carts** and **{fmt(rees_purchases)} purchases**. Views are not OTTO clicks.",
+        f"- Arithmetic sum of both real archives: **{fmt(otto_total + rees_total)} rows** from **two different populations**; they are not a single clickstream.",
+        f"- Stress test: **{fmt(scale['stress_rows'])} derived rows**, five scenarios created from OTTO; they do not represent new users or events.",
+        "", "| REES46 file | Events | Views | Carts | Purchases | Compressed |", "|---|---:|---:|---:|---:|---:|",
     ]
     for month, item in zip(MONTHS, months):
         lines.append(f"| {month} | {fmt(item['rows'])} | {fmt(item['views'])} | "
                      f"{fmt(item['carts'])} | {fmt(item['purchases'])} | {gib(item['compressed_bytes'])} |")
-    lines += ["", "Los tamaños comprimidos proceden de los archivos del publicador. El cargador leyó cada gzip hasta el final, validó el CSV y cotejó sus filas con ClickHouse.",
-              "", "## Consultas medidas", "",
-              "El benchmark desactivó la caché de consultas. Las consultas OTTO se ejecutaron tres veces y se indica la mediana; las otras consultas, una vez. El resultado diario del archivo y del agregado se comparó fila a fila antes de guardar el informe.",
-              "", "| Consulta | Segundos | Filas leídas | Bytes leídos |", "|---|---:|---:|---:|" ]
-    titles = {"otto_raw_daily": "OTTO bruto, día/tipo", "otto_rollup_daily": "OTTO agregado, día/tipo",
-              "rees46_month": "REES46 octubre, tipos", "scale_scenarios": "Escenarios derivados"}
+    lines += ["", "The compressed sizes come from the publisher's files. The loader read each gzip to the end, validated the CSV and cross-checked its rows with ClickHouse.",
+              "", "## Measured queries", "",
+              "The benchmark disabled the query cache. The OTTO queries were run three times and the median is shown; the other queries, once. The daily result of the archive and of the aggregate was compared row by row before saving the report.",
+              "", "| Query | Seconds | Rows read | Bytes read |", "|---|---:|---:|---:|" ]
+    titles = {"otto_raw_daily": "Raw OTTO, day/type", "otto_rollup_daily": "Aggregated OTTO, day/type",
+              "rees46_month": "REES46 October, types", "scale_scenarios": "Derived scenarios"}
     for name, title in titles.items():
         result = benchmark["queries"][name]
         first = result["runs"][0]
@@ -73,18 +73,18 @@ def main() -> None:
     raw = benchmark["queries"]["otto_raw_daily"]
     rollup = benchmark["queries"]["otto_rollup_daily"]
     ratio = raw["median_seconds"] / rollup["median_seconds"] if rollup["median_seconds"] else 0
-    lines += ["", f"En este equipo y para esta pregunta, el agregado fue **{ratio:.1f} veces** más rápido por mediana de tiempo. La cifra es local y depende del almacenamiento, la caché del sistema operativo y la carga concurrente; el contraste principal también son las filas y bytes leídos.",
-              "", "## Espacio de las tablas", "", "| Tabla | Filas | Disco comprimido |", "|---|---:|---:|"]
+    lines += ["", f"On this machine and for this question, the aggregate was **{ratio:.1f} times** faster by median time. The figure is local and depends on storage, the operating system cache and concurrent load; the main contrast is also the rows and bytes read.",
+              "", "## Table sizes", "", "| Table | Rows | Compressed on disk |", "|---|---:|---:|"]
     for part in benchmark["table_parts"]:
         lines.append(f"| `{part['table']}` | {fmt(part['rows'])} | {readable_bytes(part['bytes_on_disk'])} |")
     if benchmark.get("measurement_notes"):
-        lines += ["", f"Condiciones adicionales: {benchmark['measurement_notes']}"]
-    lines += ["", "## Plan de lectura para octubre REES46", "", "```text",
+        lines += ["", f"Additional conditions: {benchmark['measurement_notes']}"]
+    lines += ["", "## Read plan for REES46 October", "", "```text",
               benchmark["explain_rees46_october_partition"].rstrip(), "```", "",
-              f"Entorno: {benchmark['environment']}.", "",
-              "**Interpretación:** OTTO contiene clics; REES46 contiene vistas de producto, carritos y compras. La tabla de estrés son copias etiquetadas. El replay inserta eventos históricos hoy, sin cambiar su fecha original.", ""]
+              f"Environment: {benchmark['environment']}.", "",
+              "**Interpretation:** OTTO contains clicks; REES46 contains product views, carts and purchases. The stress table contains labelled copies. The replay inserts historical events today, without changing their original date.", ""]
     OUTPUT.write_text("\n".join(lines))
-    print(f"Informe escrito: {OUTPUT}")
+    print(f"Report written: {OUTPUT}")
 
 
 if __name__ == "__main__":

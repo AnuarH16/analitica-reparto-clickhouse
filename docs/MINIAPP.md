@@ -1,50 +1,50 @@
-# Miniapp comercial de Delivery Atlas
+# Delivery Atlas commercial mini-app
 
-Responsable: Anuar. Fecha: 14/10/2026. Archivos: `web/delivery.html`, `web/delivery.js`, `web/delivery.css`.
+Owner: Anuar. Date: 14 October 2026. Files: `web/delivery.html`, `web/delivery.js`, `web/delivery.css`.
 
-Una persona hace un pedido en una app de reparto ficticia de Madrid. Cada acción queda registrada en ClickHouse. El pedido confirmado entra en la misma simulación de reparto que los clientes con IA: se le asigna un repartidor y se sigue por GPS hasta la entrega. Restaurantes, precios, repartidores y posiciones son ficticios. No hay login ni cobro.
+A person places an order in a fictional delivery app in Madrid. Every action is recorded in ClickHouse. The confirmed order enters the same delivery simulation as the AI customers: a courier is assigned and it is tracked by GPS until delivery. Restaurants, prices, couriers and positions are fictional. There is no login and no payment.
 
-## Arrancar
+## Start
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
 ```
 
-1. Abrir el panel en http://127.0.0.1:8001/. En «Clientes y reparto», elegir un modo de clientes: **Política local de prueba** o **Simulador de tráfico** (no necesitan Ollama), o **IA + tráfico masivo**. Después, pulsar «Iniciar clientes y reparto».
-2. Abrir la miniapp en http://127.0.0.1:8001/delivery.html.
-3. Buscar, filtrar, abrir un restaurante, añadir platos y pulsar **Confirmar pedido**.
+1. Open the dashboard at http://127.0.0.1:8001/. Under "Customers and delivery", choose a customer mode: **Local test policy** or **Traffic simulator** (neither needs Ollama), or **AI + mass traffic**. Then click "Start customers and delivery".
+2. Open the mini-app at http://127.0.0.1:8001/delivery.html.
+3. Search, filter, open a restaurant, add dishes and click **Place order**.
 
-Si no hay ninguna simulación de clientes activa, el checkout responde 409 y no crea nada. La miniapp lo explica y enlaza al panel. La navegación se registra igualmente.
+If no customer simulation is running, checkout returns 409 and creates nothing. The mini-app explains this and links to the dashboard. Browsing is recorded anyway.
 
-## Qué se registra
+## What is recorded
 
-Todo lleva `source = delivery-miniapp` y `source_kind = demo_live`: son acciones nuevas que hace una persona en un negocio ficticio.
+Everything carries `source = delivery-miniapp` and `source_kind = demo_live`: these are new actions performed by a person in a fictional business.
 
-| Acción en la app | `event_type` | `section` | Campos extra |
+| Action in the app | `event_type` | `section` | Extra fields |
 |---|---|---|---|
-| Buscar | `search` | `search` | — |
-| Activar un filtro (desactivarlo no cuenta) | `filter_applied` | `search` | — |
-| Abrir restaurante | `restaurant_opened` | `restaurants` | `restaurant_id` |
-| Abrir plato | `product_opened` | `menu` | `restaurant_id`, `product_id` |
-| Añadir / quitar del carrito | `cart_added` / `cart_removed` | `cart` | `restaurant_id`, `product_id` |
-| Vaciar el carrito o cerrar la pestaña con productos | `session_abandoned` | `session` | — |
-| Confirmar pedido | `order_submitted` | `checkout` | `restaurant_id`, `order_id` |
+| Search | `search` | `search` | — |
+| Turn on a filter (turning it off does not count) | `filter_applied` | `search` | — |
+| Open a restaurant | `restaurant_opened` | `restaurants` | `restaurant_id` |
+| Open a dish | `product_opened` | `menu` | `restaurant_id`, `product_id` |
+| Add to / remove from cart | `cart_added` / `cart_removed` | `cart` | `restaurant_id`, `product_id` |
+| Empty the cart or close the tab with items in it | `session_abandoned` | `session` | — |
+| Place the order | `order_submitted` | `checkout` | `restaurant_id`, `order_id` |
 
-- **Identificadores:** `session_id` es nuevo en cada visita y después de cada pedido. `user_id` es un UUID que se guarda en el navegador (`localStorage`); si el navegador lo bloquea, la app sigue funcionando y se genera uno nuevo cada vez.
-- **Impresiones:** no se registran (`product_impression`), siguiendo el plan del equipo: falta definir cuándo un producto es visible.
-- **Envío de eventos:** cada evento se envía a `POST /api/events` en cuanto ocurre. La columna derecha («Eventos de esta sesión») enseña la respuesta real de la API:
-  - 202: en cola.
-  - 200: ya estaba registrado.
-  - 400/409: no guardado, y se muestra el motivo.
-  - Error de red o 503: se reintenta con espera exponencial, hasta 6 intentos.
+- **Identifiers:** `session_id` is new on every visit and after every order. `user_id` is a UUID stored in the browser (`localStorage`); if the browser blocks it, the app keeps working and a new one is generated each time.
+- **Impressions:** not recorded (`product_impression`), following the team plan: it is still undefined when a product counts as visible.
+- **Sending events:** each event is sent to `POST /api/events` as soon as it happens. The right-hand column ("Events in this session") shows the API's real response:
+  - 202: queued.
+  - 200: already recorded.
+  - 400/409: not saved, and the reason is shown.
+  - Network error or 503: retried with exponential backoff, up to 6 attempts.
 
-## Reintentos sin doble conteo
+## Retries without double counting
 
-Un evento se construye una sola vez. Al reintentar se reenvía el mismo objeto, con el mismo `event_id` y la misma hora, así que la cola lo reconoce como duplicado y responde 200.
+An event is built only once. A retry resends the same object, with the same `event_id` and the same time, so the queue recognizes it as a duplicate and returns 200.
 
-El checkout funciona igual: `order_id`, `checkout_event_id` y la hora se fijan al primer intento. Si se cae la red y se pulsa otra vez, se reenvía el mismo pedido y la API responde 200 sin crear otro. Si cambia la cesta, el pedido es otro.
+Checkout works the same way: `order_id`, `checkout_event_id` and the time are fixed on the first attempt. If the network drops and the button is pressed again, the same order is resent and the API returns 200 without creating another. If the basket changes, it is a different order.
 
-Mientras se espera la respuesta del checkout, quedan bloqueados las cantidades, vaciar el carrito, volver y confirmar de nuevo. Al recibir la respuesta o fallar la conexión se desbloquean; un reintento sin cambiar la cesta conserva los mismos identificadores.
+While waiting for the checkout response, quantities, emptying the cart, going back and placing the order again are locked. They are unlocked when the response arrives or the connection fails; a retry without changing the basket keeps the same identifiers.
 
 ## Checkout: `POST /api/checkout`
 
@@ -57,49 +57,49 @@ Mientras se espera la respuesta del checkout, quedan bloqueados las cantidades, 
 }
 ```
 
-El navegador envía solo identificadores y cantidades. **El precio y el importe los calcula la API** con el catálogo de la ejecución: un cliente no puede fijar el precio ni mezclar restaurantes. Límites: de 1 a 10 unidades por plato y 20 por pedido.
+The browser sends only identifiers and quantities. **The API computes the price and the total** from the run's catalog: a client cannot set the price or mix restaurants. Limits: 1 to 10 units per dish and 20 per order.
 
-| Respuesta | Significado |
+| Response | Meaning |
 |---|---|
-| 202 | Pedido aceptado en la cola. Devuelve `run_id`, `order_id` y `amount_minor` |
-| 200 | Reintento de un pedido ya aceptado |
-| 400 | Cesta o identificadores no válidos para el catálogo |
-| 409 `no_customer_run` | No hay simulación de clientes activa; no se ha creado nada |
+| 202 | Order accepted into the queue. Returns `run_id`, `order_id` and `amount_minor` |
+| 200 | Retry of an order that was already accepted |
+| 400 | Basket or identifiers not valid for the catalog |
+| 409 `no_customer_run` | No customer simulation is running; nothing was created |
 
-Una compra genera tres registros, en el mismo commit de la cola:
+A purchase produces three records, in the same queue commit:
 
-1. `app_events`: el clic `order_submitted` (`demo_live`), con `order_id`.
-2. `customer_orders`: la cesta con precios del catálogo, `decision_mode = 'manual'` y `source_kind = 'demo_live'`. Para guardar ese valor, `sql/atlas_miniapp.sql` añade `demo_live` al Enum. Es un cambio aditivo que no reescribe filas.
-3. `order_events`: el estado `created`. Después, el simulador asigna repartidor y publica `preparing` → `picked_up` → `en_route` → `delivered` y las posiciones GPS. Todo ello sigue marcado como `synthetic`.
+1. `app_events`: the `order_submitted` click (`demo_live`), with `order_id`.
+2. `customer_orders`: the basket with catalog prices, `decision_mode = 'manual'` and `source_kind = 'demo_live'`. To store that value, `sql/atlas_miniapp.sql` adds `demo_live` to the Enum. It is an additive change that does not rewrite rows.
+3. `order_events`: the `created` status. Afterwards, the simulator assigns a courier and publishes `preparing` → `picked_up` → `en_route` → `delivered` and the GPS positions. All of that remains labelled `synthetic`.
 
-La pantalla de seguimiento consulta `GET /api/order?run_id=…&order_id=…` cada 2 s y pinta el estado que lee de ClickHouse. Ambos parámetros deben ser UUID y aparecer una sola vez. La respuesta contiene `order: null` mientras el pedido aún no se haya publicado. La consulta busca ese pedido dentro de esa ejecución y sigue encontrándolo aunque quede fuera de los 200 pedidos del panel. En el panel, aparece como «Miniapp (manual)».
+The tracking screen queries `GET /api/order?run_id=…&order_id=…` every 2 s and draws the status it reads from ClickHouse. Both parameters must be UUIDs and appear only once. The response contains `order: null` while the order has not been published yet. The query looks for that order within that run and keeps finding it even when it falls outside the dashboard's 200 orders. On the dashboard, it appears as "Mini-app (manual)".
 
-## Pruebas de regresión
+## Regression tests
 
 ```bash
 python3 -m unittest discover -s tests -v
 node --test tests/test_delivery_ui.cjs
 ```
 
-Las pruebas de JavaScript usan Node sin dependencias adicionales. Cubren cambios de cesta y confirmaciones concurrentes, reintentos, entrega/cancelación fuera de la ventana del panel y respuestas de seguimiento obsoletas.
+The JavaScript tests use Node with no additional dependencies. They cover basket changes and concurrent confirmations, retries, delivery/cancellation outside the dashboard window and stale tracking responses.
 
-La prueba de integración de seguimiento se activa con `ATLAS_TEST_CLICKHOUSE_URL`, que debe apuntar a una **instancia desechable** de ClickHouse 25.8, con las credenciales de demo. Crea un pedido entregado y otros 200 activos, publica los eventos mediante la cola y comprueba por HTTP que el pedido entregado sigue consultándose aunque el panel lo omita. Ejemplo con un contenedor temporal sin volúmenes:
+The tracking integration test is enabled with `ATLAS_TEST_CLICKHOUSE_URL`, which must point to a **disposable** ClickHouse 25.8 instance with the demo credentials. It creates one delivered order and 200 more active ones, publishes the events through the queue and checks over HTTP that the delivered order can still be queried even though the dashboard leaves it out. Example with a temporary container without volumes:
 
 ```bash
 docker run -d --rm --name atlas-miniapp-test -p 127.0.0.1:18124:8123 -e CLICKHOUSE_DB=delivery -e CLICKHOUSE_USER=demo -e CLICKHOUSE_PASSWORD=demo clickhouse/clickhouse-server:25.8
-# Esperar a que ClickHouse responda antes de lanzar las pruebas.
+# Wait until ClickHouse responds before running the tests.
 ATLAS_TEST_CLICKHOUSE_URL=http://127.0.0.1:18124 python3 -m unittest discover -s tests -v
 docker stop atlas-miniapp-test
 ```
 
-## Comprobar en ClickHouse
+## Check in ClickHouse
 
 ```sql
--- Acciones de la miniapp (recuento lógico)
+-- Mini-app actions (logical count)
 SELECT event_type, uniqExact(event_id) FROM delivery_atlas.app_events
 WHERE source = 'delivery-miniapp' GROUP BY event_type;
 
--- Clic de compra → cesta → estados del mismo pedido
+-- Purchase click → basket → statuses of the same order
 SELECT o.order_id, o.amount_minor, o.items, e.event_type
 FROM delivery_atlas.customer_orders AS o FINAL
 JOIN delivery_atlas.app_events AS e FINAL ON e.event_id = o.checkout_event_id
@@ -109,20 +109,20 @@ SELECT status, courier_id, event_time FROM delivery_atlas.order_events FINAL
 WHERE order_id = '<order_id>' ORDER BY event_time;
 ```
 
-## Verificación del 14/10
+## Verification on 14 October
 
-Tests: `python3 -m unittest discover -s tests -v`. Los 26 pasan, incluidos los 8 de `tests/test_miniapp.py`.
+Tests: `python3 -m unittest discover -s tests -v`. All 28 pass, including the 8 in `tests/test_miniapp.py`.
 
-Prueba de punta a punta en Chromium, con ClickHouse 25.8 y la API Atlas, usando la simulación con la política local y 8 repartidores:
-- **Recorrido:** búsqueda, 2 filtros, restaurante, 3 platos abiertos, 3 añadidos, 1 quitado y checkout. Son 12 eventos `demo_live` en `app_events` y coinciden con el agregado `app_daily_counts`.
-- **Compra:** el clic `order_submitted` enlaza con la compra (`checkout_event_id`) y con su `order_id`. El importe de 22,67 € lo calculó la API.
-- **Entrega:** el pedido pasó por 6 estados hasta `delivered` en unos 97 s, con 49 posiciones GPS de su repartidor.
-- **Pantalla:** el seguimiento mostró los cinco pasos leídos de ClickHouse.
+End-to-end test in Chromium, with ClickHouse 25.8 and the Atlas API, using the simulation with the local policy and 8 couriers:
+- **Path:** a search, 2 filters, a restaurant, 3 dishes opened, 3 added, 1 removed and checkout. That makes 12 `demo_live` events in `app_events`, matching the `app_daily_counts` aggregate.
+- **Purchase:** the `order_submitted` click links to the purchase (`checkout_event_id`) and to its `order_id`. The total of €22.67 was computed by the API.
+- **Delivery:** the order went through 6 statuses until `delivered` in about 97 s, with 49 GPS positions from its courier.
+- **Screen:** the tracking view showed the five steps read from ClickHouse.
 
-Se repitió sobre el commit de tráfico concurrente de Gere2, en modo «Simulador de tráfico» con 200 clientes y 80 repartidores. El pedido manual se entregó entre 239 pedidos simulados y conservó su procedencia (`manual` / `demo_live` frente a `traffic` / `synthetic`). En la ejecución se aceptaron unos 14.000 eventos, sin duplicados ni errores de publicación.
+It was repeated on Gere2's concurrent-traffic commit, in "Traffic simulator" mode with 200 customers and 80 couriers. The manual order was delivered among 239 simulated orders and kept its provenance (`manual` / `demo_live` versus `traffic` / `synthetic`). About 14,000 events were accepted during the run, with no duplicates or publishing errors.
 
-## Límites
+## Limits
 
-- **Catálogo:** es el de demo (12 restaurantes y 36 platos). Sin el catálogo de Glovo cargado, todos los restaurantes comparten los mismos tres nombres de plato, así que la búsqueda por plato encuentra casi todos.
-- **Ciudades:** solo Madrid. El selector de ciudad se rellena con las ciudades del catálogo.
-- **Seguimiento:** es esquemático (sin red viaria), como el resto del tracking simulado.
+- **Catalog:** it is the demo catalog (12 restaurants and 36 dishes). Without the Glovo catalog loaded, all restaurants share the same three dish names, so searching by dish matches almost all of them.
+- **Cities:** Madrid only. The city selector is filled with the cities in the catalog.
+- **Tracking:** it is schematic (no road network), like the rest of the simulated tracking.

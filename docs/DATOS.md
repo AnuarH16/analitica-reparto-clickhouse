@@ -1,36 +1,32 @@
-# Datos
+# Data
 
-Los ficheros van en `datos/` y **no se suben a git** (pesan cientos de MB). Cada miembro los
-descarga desde las fuentes originales.
+The files go in `datos/` and **are not committed to git** (they weigh hundreds of MB). Each member downloads them from the original sources.
 
-| Fuente | Qué contiene | Qué podemos afirmar | Uso |
+| Source | What it contains | What we can claim | Use |
 |---|---|---|---|
-| [MT-LIFT (Meituan)](https://mtdjdsp.github.io/MT-LIFT/) | 5.541.842 registros reales de campañas de una app de reparto de comida, con clic y conversión | Qué promociones generan clics y compras | Conjunto principal |
-| [Censo de locales de Madrid](https://datos.madrid.es/dataset/209548-0-censo-locales-historico) | Locales con actividad, distrito y ubicación | Que los restaurantes de la app existen | Tabla `restaurantes` |
-| [Criteo Uplift v2.1](https://huggingface.co/datasets/criteo/criteo-uplift) | 13.979.592 filas reales de un experimento aleatorizado de **publicidad**: tratamiento, exposición, visita y conversión | Cuánto aumenta una campaña las visitas y compras (uplift) | **Cargado.** Provisional mientras llega MT-LIFT (acceso pedido en Drive) |
-| [OTTO](https://github.com/otto-de/recsys-dataset) | 216,7 M de eventos reales de clic, carrito y pedido por sesión (e-commerce) | Recorridos reales y abandono | Plan B si el profesor exige recorridos reales |
-| Nuestra app | Clics que hagamos durante la demo (`origen = 'app_real'`) | Que el sistema funciona de extremo a extremo | `eventos_app` |
-| `scripts/simular_sesiones.py` | Sesiones generadas (`origen = 'simulado'`) | **Nada sobre usuarios reales**: solo prueba de escala | `eventos_app` |
+| [MT-LIFT (Meituan)](https://mtdjdsp.github.io/MT-LIFT/) | 5,541,842 real records of campaigns from a food-delivery app, with click and conversion | Which promotions generate clicks and purchases | Main dataset |
+| [Madrid business premises census](https://datos.madrid.es/dataset/209548-0-censo-locales-historico) | Premises with activity, district and location | That the app's restaurants exist | `restaurantes` table |
+| [Criteo Uplift v2.1](https://huggingface.co/datasets/criteo/criteo-uplift) | 13,979,592 real rows from a randomized **advertising** experiment: treatment, exposure, visit and conversion | How much a campaign increases visits and purchases (uplift) | **Loaded.** Provisional until MT-LIFT arrives (access requested on Drive) |
+| [OTTO](https://github.com/otto-de/recsys-dataset) | 216.7 M real click, cart and order events per session (e-commerce) | Real paths and abandonment | Plan B if the professor requires real paths |
+| Our app | Clicks we make during the demo (`origen = 'app_real'`) | That the system works end to end | `eventos_app` |
+| `scripts/simular_sesiones.py` | Generated sessions (`origen = 'simulado'`) | **Nothing about real users**: only a scale test | `eventos_app` |
 
-## Límite que hay que explicar
+## Limit that must be explained
 
-MT-LIFT registra clic y conversión de **promociones**, pero no dice si el usuario pasó por
-búsqueda, menú o carrito. El embudo por secciones sale de nuestra app y de las sesiones simuladas.
-Los usuarios de MT-LIFT y los de nuestra app son distintos: **no se cruzan**.
+MT-LIFT records clicks and conversions of **promotions**, but does not say whether the user went through search, menu or cart. The funnel by section comes from our app and the simulated sessions. MT-LIFT users and our app's users are different: **they are not joined**.
 
-## Cargar Criteo
+## Loading Criteo
 
-1. Descargar `criteo-uplift-v2.1.csv` (el `.csv.gz` de Hugging Face, 311 MB, se descomprime a 3,2 GB).
-2. Dejarlo en `datos/criteo-uplift-v2.1.csv`.
-3. `bash scripts/cargar_criteo.sh` → unos 20 s; debe terminar imprimiendo `13979592`.
+1. Download `criteo-uplift-v2.1.csv` (the `.csv.gz` from Hugging Face, 311 MB, decompresses to 3.2 GB).
+2. Put it in `datos/criteo-uplift-v2.1.csv`.
+3. `bash scripts/cargar_criteo.sh` → about 20 s; it should finish by printing `13979592`.
 
-En ClickHouse ocupa **262 MB** (1,27 GB sin comprimir): las columnas de etiquetas,
-que van en la clave de ordenación, se quedan en unos KB.
+In ClickHouse it takes **262 MB** (1.27 GB uncompressed): the label columns, which are in the sort key, shrink to a few KB.
 
-## Pendiente
+## Pending
 
-- [ ] MT-LIFT: Drive exige permiso (pedido el 30-09); la otra fuente oficial es Baidu
-      (https://pan.baidu.com/s/1YmE5g-Y71ULNptiWqpToPA?pwd=06nb, requiere cuenta). Al tenerlo: ver sus columnas reales y escribir `scripts/cargar_mtlift.sql`
-      (tabla `mtlift_promos`, `ENGINE = MergeTree ORDER BY (tratamiento, fila)`).
-- [ ] Descargar el censo, filtrar la hostelería y escribir `scripts/cargar_censo.sql`
-      (tabla `restaurantes`).
+- [ ] MT-LIFT: Drive requires permission (requested on 30 Sep); the other official source is Baidu
+      (https://pan.baidu.com/s/1YmE5g-Y71ULNptiWqpToPA?pwd=06nb, requires an account). Once we have it: check its real columns and write `scripts/cargar_mtlift.sql`
+      (table `mtlift_promos`, `ENGINE = MergeTree ORDER BY (tratamiento, fila)`).
+- [ ] Download the census, filter the hospitality businesses and write `scripts/cargar_censo.sql`
+      (table `restaurantes`).

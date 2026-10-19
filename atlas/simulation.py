@@ -111,16 +111,16 @@ class Simulator:
 
     def start(self,fleet=12,interval=2,seed=42,mode='legacy',customers=3,agent_mode='ollama',ch=None):
         if type(fleet) is not int or not 1<=fleet<=150 or type(interval) not in (int,float) or not 1<=interval<=10:
-            raise ValueError('Usar 1 a 150 repartidores e intervalo de 1 a 10 segundos.')
+            raise ValueError('Use 1 to 150 couriers and an interval of 1 to 10 seconds.')
         if type(seed) is not int or not 0<=seed<=4294967295:
-            raise ValueError('Semilla entera entre 0 y 4294967295.')
+            raise ValueError('Seed must be an integer between 0 and 4294967295.')
         if mode not in {'legacy','customers'} or agent_mode not in {'ollama','policy','hybrid','traffic'} or type(customers) is not int or not 1<=customers<=500:
-            raise ValueError('Modo o clientes incorrectos; usar 1 a 500 clientes.')
+            raise ValueError('Wrong mode or customers; use 1 to 500 customers.')
         if agent_mode in {'ollama','policy'} and customers>24:
-            raise ValueError('Para más de 24 clientes usa IA + tráfico masivo o simulador de tráfico.')
+            raise ValueError('For more than 24 customers use AI + mass traffic or the traffic simulator.')
         with self.lock:
             if self.thread and self.thread.is_alive():
-                raise ValueError('La simulación ya está activa; pararla antes de iniciar otra.')
+                raise ValueError('The simulation is already running; stop it before starting another.')
             if mode=='customers':
                 from atlas.customer_runtime import CustomerRuntime
                 runtime=CustomerRuntime(self.store,ch,fleet,customers,interval,seed,agent_mode)
@@ -134,7 +134,7 @@ class Simulator:
             self.state={'run_id':self.scenario.run_id,'started_at':iso(now),'fleet':fleet,
                 'interval_seconds':interval,'seed':seed,'running':True,'state':'running',
                 'ticks':0,'accepted':0,'error':None,'last_tick_at':None,
-                'meaning':'Posiciones y pedidos sintéticos en tiempo de reloj; rutas esquemáticas.'}
+                'meaning':'Synthetic positions and orders in clock time; schematic routes.'}
             self.store.metadata('simulation',self.state)
             self.thread=threading.Thread(target=self.run,daemon=True)
             self.thread.start()
@@ -145,7 +145,7 @@ class Simulator:
         the legacy fleet has no commerce engine, so it is refused instead of faked."""
         with self.lock:runtime=self.customer_runtime
         if not runtime:
-            raise LookupError('No hay una ejecución de clientes activa.')
+            raise LookupError('There is no active customer run.')
         return runtime.manual_checkout(request)
 
     def stop(self):

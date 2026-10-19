@@ -18,7 +18,7 @@ def docker(*args):
 def main():
     before=call('http://127.0.0.1:8001','/api/status')
     if before['pending']:
-        raise SystemExit('Esperar a pending=0 y detener generadores antes de esta prueba.')
+        raise SystemExit('Wait for pending=0 and stop generators before this test.')
     event={'schema_version':1,'event_id':str(uuid4()),'session_id':str(uuid4()),
            'event_time':datetime.now(timezone.utc).isoformat(timespec='milliseconds'),
            'event_type':'search','section':'recovery-check','city_id':'test-city',
@@ -40,14 +40,14 @@ def main():
                 break
             time.sleep(1)
         else:
-            raise AssertionError('El evento pendiente no se recuperó')
+            raise AssertionError('The pending event was not recovered')
         retry=call('http://127.0.0.1:8001','/api/events',{'events':[event]})
         assert retry['duplicates']==1 and retry['accepted']==0
         output={'checked_at':datetime.now(timezone.utc).isoformat(),'event_id':event['event_id'],
                 'accepted_during_database_outage':True,'pending_before_api_restart':pending['pending'],
                 'logical_count_after_recovery':n,'retry_after_restart':retry,
                 'final_status':call('http://127.0.0.1:8001','/api/status'),
-                'scope':'Parada ordenada de servicios locales y persistencia de volúmenes. No prueba pérdida de disco ni caída abrupta del sistema.'}
+                'scope':'Orderly shutdown of local services and volume persistence. Does not test disk loss or an abrupt system crash.'}
         path=ROOT/'data/atlas/recovery.json'
         path.write_text(json.dumps(output,ensure_ascii=False,indent=2)+'\n')
         print(json.dumps(output,ensure_ascii=False,indent=2))

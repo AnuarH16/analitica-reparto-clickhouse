@@ -18,7 +18,7 @@ class CustomerRuntime:
         self.decider=OllamaAgent() if agent_mode in {'ollama','hybrid'} else PolicyAgent()
         self.traffic=TrafficAgent(seed)
         if agent_mode in {'ollama','hybrid'} and not self.decider.ready():
-            raise ValueError('Modelo local no disponible. Arranca Ollama y descarga qwen3:0.6b; o elige política local.')
+            raise ValueError('Local model not available. Start Ollama and download qwen3:0.6b, or choose the local policy.')
         catalog={'restaurants':ch.query('SELECT * EXCEPT version FROM delivery_atlas.demo_restaurants FINAL ORDER BY restaurant_id'),
             'products':ch.query('SELECT * EXCEPT version FROM delivery_atlas.demo_products FINAL ORDER BY product_id')}
         now=datetime.now(timezone.utc)
@@ -31,7 +31,7 @@ class CustomerRuntime:
             'ai_customers':min(3,customers) if agent_mode=='hybrid' else customers if agent_mode=='ollama' else 0,
             'traffic_customers':max(0,customers-3) if agent_mode=='hybrid' else customers if agent_mode=='traffic' else 0,
             'traffic_decisions':0,'traffic_state':'running' if agent_mode in {'hybrid','traffic'} else 'inactive',
-            'meaning':'Clientes sintéticos: checkout crea pedidos y su tracking. Compras sin cobro real.'}
+            'meaning':'Synthetic customers: checkout creates orders and their tracking. Purchases with no real payment.'}
         self.thread=threading.Thread(target=self.run,daemon=True)
         self.agent_thread=threading.Thread(target=self.agent_loop,daemon=True)
         self.traffic_thread=threading.Thread(target=self.traffic_loop,daemon=True)
@@ -56,7 +56,7 @@ class CustomerRuntime:
         Uses commit(): the order exists in memory only after SQLite accepted its rows."""
         with self.lock:
             if self.cancel.is_set() or not self.state['running']:
-                raise LookupError('No hay una ejecución de clientes activa.')
+                raise LookupError('There is no active customer run.')
             committed=self.commit(lambda engine:engine.manual_checkout(request,datetime.now(timezone.utc)))
             # manual_checkout already validated the UUID; normalise case for the lookup.
             order=self.engine.orders.get(str(UUID(request['order_id'])))
@@ -99,7 +99,7 @@ class CustomerRuntime:
                 self.cancel.wait(max(0,deadline-time.monotonic()))
         except Exception:
             logging.exception('Customer GPS worker stopped')
-            with self.lock:self.state['error']='La ingesta no pudo continuar. Comprueba la cola y reinicia la demo.'
+            with self.lock:self.state['error']='Ingestion could not continue. Check the queue and restart the demo.'
         finally:
             self.cancel.set()
             with self.lock:self.state.update(running=False,state='stopped' if not self.state['error'] else 'error')
@@ -124,7 +124,7 @@ class CustomerRuntime:
                     failures=0
                 except Exception:
                     failures+=1
-                    with self.lock:self.state['agent_error']='Una decisión no pudo ejecutarse. Se reintentará; no se creó una compra inválida.'
+                    with self.lock:self.state['agent_error']='A decision could not be executed. It will be retried; no invalid purchase was created.'
                     if failures>=3:
                         with self.lock:self.state['agent_state']='error'
                         return

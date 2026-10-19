@@ -41,21 +41,21 @@ def main():
     parser.add_argument('--seed',type=int,default=42)
     parser.add_argument('--run-id')
     parser.add_argument('--start')
-    parser.add_argument('--rate',type=float,default=0,help='Meta de eventos/s. 0 envía sin pausa.')
+    parser.add_argument('--rate',type=float,default=0,help='Target events/s. 0 sends without pausing.')
     args=parser.parse_args()
     if args.command=='init':
         ClickHouse().init()
-        print('SQL delivery_atlas aplicado de forma idempotente.')
+        print('delivery_atlas SQL applied idempotently.')
         return
     if args.command=='status':
         print(json.dumps(call(args.url,'/api/status'),indent=2))
         print(json.dumps(call(args.url,'/api/summary'),indent=2))
         return
     if args.events < 1 or not 1 <= args.batch <= 5000 or args.rate < 0:
-        parser.error('events > 0; batch entre 1 y 5000; rate >= 0')
+        parser.error('events > 0; batch between 1 and 5000; rate >= 0')
     start=datetime.fromisoformat(args.start.replace('Z','+00:00')) if args.start else datetime.now(timezone.utc)-timedelta(days=1)
     if start.tzinfo is None:
-        parser.error('--start debe incluir zona horaria.')
+        parser.error('--start must include a time zone.')
     start=start.astimezone(timezone.utc).replace(microsecond=(start.microsecond//1000)*1000)
     run=UUID(args.run_id) if args.run_id else uuid5(NAMESPACE_URL, f'atlas:{args.seed}:{start.isoformat()}:{args.events}')
     clock=time.monotonic()
@@ -84,11 +84,11 @@ def main():
               'duplicates':duplicates,'submission_seconds':round(elapsed,4),
               'submitted_events_per_second':round(args.events/elapsed,2),'logical_payload_sha256':digest.hexdigest(),
               'source_kind':'synthetic','published_status':call(args.url,'/api/status'),
-              'assumptions':'Catálogo y sesiones ficticios. Cada sesión tiene cinco acciones sin abandono. No es conversión real. Horas simuladas, no clics observados.'}
+              'assumptions':'Fictional catalog and sessions. Each session has five actions with no abandonment. Not real conversion. Simulated times, not observed clicks.'}
     path=out/(str(run)+'.json');path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     print(json.dumps(manifest,ensure_ascii=False,indent=2))
-    print('Manifiesto:',path)
-    print('Reproducir con el mismo --run-id, --start, --seed y --events. Esperar a pending=0 antes de medir consultas.')
+    print('Manifest:',path)
+    print('Reproduce with the same --run-id, --start, --seed and --events. Wait for pending=0 before measuring queries.')
 
 if __name__=='__main__':
     main()

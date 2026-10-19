@@ -11,25 +11,25 @@ OPTIONAL = {'user_id', 'restaurant_id', 'product_id', 'source_record_id', 'simul
 
 def validate(event):
     if not isinstance(event, dict):
-        raise ValueError('Cada evento debe ser un objeto JSON.')
+        raise ValueError('Each event must be a JSON object.')
     if REQUIRED - event.keys() or event.keys() - REQUIRED - OPTIONAL:
-        raise ValueError('Campos obligatorios ausentes o campos desconocidos.')
+        raise ValueError('Missing required fields or unknown fields.')
     if type(event['schema_version']) is not int or event['schema_version'] != 1:
-        raise ValueError('schema_version debe ser 1.')
+        raise ValueError('schema_version must be 1.')
     out = dict(event)
     for key in REQUIRED - {'schema_version'}:
         if not isinstance(out[key], str) or not 0 < len(out[key]) <= 160 or '\x00' in out[key]:
-            raise ValueError(f'{key}: cadena obligatoria, máximo 160 caracteres.')
+            raise ValueError(f'{key}: required string, maximum 160 characters.')
     for key in ('event_id', 'session_id'):
         out[key] = str(UUID(out[key]))
     if out['event_type'] not in ACTIONS or out['source_kind'] not in KINDS:
-        raise ValueError('Acción o procedencia no admitida.')
+        raise ValueError('Action or provenance not supported.')
     at = datetime.fromisoformat(out['event_time'].replace('Z', '+00:00'))
     if at.tzinfo is None:
-        raise ValueError('event_time debe incluir zona horaria.')
+        raise ValueError('event_time must include a time zone.')
     at = at.astimezone(timezone.utc)
     if not datetime(2000, 1, 1, tzinfo=timezone.utc) <= at <= datetime.now(timezone.utc) + timedelta(minutes=5):
-        raise ValueError('Fecha fuera del intervalo admitido (2000 hasta ahora + 5 minutos).')
+        raise ValueError('Date outside the allowed range (2000 to now + 5 minutes).')
     out['event_time'] = at.isoformat(timespec='milliseconds')
     for key in OPTIONAL:
         # Do not change the canonical payload/digest of a legacy retry.
@@ -37,18 +37,18 @@ def validate(event):
             continue
         value = out.get(key)
         if value is not None and (not isinstance(value, str) or not 0 < len(value) <= 160 or '\x00' in value):
-            raise ValueError(f'{key}: cadena de hasta 160 caracteres o null.')
+            raise ValueError(f'{key}: string of up to 160 characters or null.')
         out[key] = value
     if out['simulation_run_id'] is not None:
         out['simulation_run_id'] = str(UUID(out['simulation_run_id']))
     if out.get('order_id') is not None:
         out['order_id']=str(UUID(out['order_id']))
     if out['source_kind'] == 'synthetic' and not out['simulation_run_id']:
-        raise ValueError('La simulación necesita simulation_run_id.')
+        raise ValueError('A simulation needs simulation_run_id.')
     if out['source_kind'] in {'public_historical', 'historical_replay'} and not out['source_record_id']:
-        raise ValueError('Una fuente histórica necesita source_record_id.')
+        raise ValueError('A historical source needs source_record_id.')
     if out['event_type'] in {'restaurant_opened', 'product_opened', 'product_impression', 'cart_added','cart_removed', 'order_submitted'} and not out['restaurant_id']:
-        raise ValueError('Esta acción necesita restaurant_id.')
+        raise ValueError('This action needs restaurant_id.')
     if out['event_type'] in {'product_opened', 'product_impression', 'cart_added','cart_removed'} and not out['product_id']:
-        raise ValueError('Esta acción necesita product_id.')
+        raise ValueError('This action needs product_id.')
     return out

@@ -51,7 +51,7 @@ class ClickHouse:
             event=json.loads(raw)
             stream=event.pop('_stream','app_events')
             if stream not in {'app_events','courier_positions','order_events','customer_activity','customer_orders'}:
-                raise ValueError('Ruta de publicación desconocida.')
+                raise ValueError('Unknown publishing route.')
             if stream=='customer_orders':
                 # JSONEachRow parses named Tuples as objects. Transform at the boundary,
                 # preserving the immutable queued payload and retry digest.
@@ -167,4 +167,4 @@ class ClickHouse:
             total = self.query('SELECT sum(events) AS events, count() AS groups FROM delivery_atlas.app_daily_counts'+where, params)[0]
         return {'events': int(total['events']), 'groups': int(total['groups']), 'rows': rows,
                 'truncated': int(total['groups']) > 10000,
-                'meaning': 'Eventos lógicos. Simulación y acciones manuales conservan su procedencia.'}
+                'meaning': 'Logical events. Simulation and manual actions keep their provenance.'}

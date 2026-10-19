@@ -1,22 +1,22 @@
-# Delivery Atlas: diseño del panel operativo
+# Delivery Atlas: operations dashboard design
 
-Se extiende la familia visual existente del laboratorio: fondo gris claro, superficies blancas, acento verde y azul para datos. Se conserva el laboratorio anterior. Panel nuevo: `web/atlas-dashboard.html`.
+It extends the lab's existing visual family: light grey background, white surfaces, green accent and blue for data. The earlier lab is kept. New dashboard: `web/atlas-dashboard.html`.
 
-## Escena y prioridad
+## Scene and priority
 
-Modo Operate: durante una clase, en un portátil o proyector con luz ambiente, Jere inicia la simulación, selecciona un repartidor y demuestra que su posición publicada cambia. Fondo claro y contraste legible; los estados no dependen solo del color.
+Operate mode: during a class, on a laptop or projector in ambient light, Jere starts the simulation, selects a courier and shows that its published position changes. Light background and readable contrast; statuses do not depend on colour alone.
 
-## Estructura
+## Structure
 
-La estructura combina operación e inventario: cabecera con control de simulación; contadores compactos; plano de coordenadas y detalle seleccionado; pedidos actuales; navegación; inventario y catálogo. Los datos históricos aparecen separados debajo, sin competir con el seguimiento. Rutas y posiciones están etiquetadas como sintéticas. Plano SVG geométrico, sin red viaria inventada ni dependencia de mapas externos.
+The structure combines operations and inventory: a header with the simulation control; compact counters; a coordinate plane and the selected detail; current orders; browsing; inventory and catalog. Historical data appears separately below, without competing with tracking. Routes and positions are labelled as synthetic. Geometric SVG plane, with no invented road network and no dependency on external maps.
 
-Se consideraron siete estructuras (mapa completo, lista con mapa, carriles de estado, línea temporal, comparación histórica, operación con inventario, sesión individual). La selección de estructura indicó operación con inventario. El servicio de alternativas visuales no estaba disponible; se heredó el sistema existente. No se delegó el trabajo: el usuario pidió que Rayo trabajara solo.
+Seven structures were considered (full map, list with map, status lanes, timeline, historical comparison, operations with inventory, individual session). The structure selection pointed to operations with inventory. The visual-alternatives service was not available; the existing system was inherited. The work was not delegated: the user asked Rayo to work alone.
 
-## Sistema
+## System
 
-- Tipografía de sistema para controles y datos, evitando descargas en una demo local.
-- Verde oscuro `#24553d` para acción principal y selección; azul `#244e77` para GPS; rojo `#9f3131` para error; naranja oscuro para demoras.
-- Texto principal `#18242d`, secundario `#52645b`, fondo `#f6f7f3`, líneas `#dfe4df`.
-- Separar secciones con espacio y líneas; no anidar tarjetas. Botones y controles con foco visible, estados de carga y errores explícitos.
-- Dos columnas para seguimiento en escritorio; una en móvil, con tabla horizontal desplazable y plano visible.
-- Sin animación decorativa. El marcador cambia solo al recibir posiciones del servidor. Menos movimiento conserva el mismo comportamiento.
+- System font for controls and data, avoiding downloads in a local demo.
+- Dark green `#24553d` for the main action and selection; blue `#244e77` for GPS; red `#9f3131` for errors; dark orange for delays.
+- Main text `#18242d`, secondary `#52645b`, background `#f6f7f3`, lines `#dfe4df`.
+- Separate sections with space and lines; do not nest cards. Buttons and controls with visible focus, explicit loading and error states.
+- Two columns for tracking on desktop; one on mobile, with a horizontally scrollable table and the plane visible.
+- No decorative animation. The marker only changes when positions are received from the server. Reduced motion keeps the same behaviour.

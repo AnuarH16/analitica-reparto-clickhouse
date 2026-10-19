@@ -15,7 +15,7 @@ from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, PageBreak, Preformatted
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / 'docs/DOCUMENTO-TECNICO-EQUIPO.md'
+SOURCE = ROOT / 'docs/TEAM-TECHNICAL-GUIDE.md'
 OUTPUT = ROOT / 'output/pdf/Delivery-Atlas-Documento-Tecnico-Equipo.pdf'
 
 

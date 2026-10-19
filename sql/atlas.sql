@@ -1,8 +1,8 @@
--- Delivery Atlas v1. Base independiente del laboratorio histórico `delivery`.
+-- Delivery Atlas v1. Database separate from the historical `delivery` lab.
 CREATE DATABASE IF NOT EXISTS delivery_atlas;
 
--- Una acción lógica. Reintentos pueden producir filas físicas antes de fusionar.
--- La API fija la identidad y el contenido; ORDER BY no impone unicidad.
+-- One logical action. Retries can produce physical rows before merging.
+-- The API fixes identity and content. ORDER BY does not enforce uniqueness.
 CREATE TABLE IF NOT EXISTS delivery_atlas.app_events
 (
     schema_version UInt16,
@@ -30,7 +30,7 @@ ENGINE = ReplacingMergeTree(ingested_at)
 PARTITION BY toYYYYMM(event_date)
 ORDER BY (source_kind, event_date, city_id, event_type, event_time, session_id, event_id);
 
--- Guardar conjuntos de IDs, no sumar filas físicas. Los reintentos no suman dos veces.
+-- Store sets of IDs instead of adding up physical rows. Retries are not counted twice.
 CREATE TABLE IF NOT EXISTS delivery_atlas.app_daily_rollup
 (
     source_kind Enum8('synthetic'=1, 'demo_live'=2, 'public_historical'=3, 'historical_replay'=4),

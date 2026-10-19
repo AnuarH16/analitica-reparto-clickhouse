@@ -78,11 +78,11 @@ class Store:
                 existing = db.execute('SELECT digest FROM outbox WHERE event_id=?', (event['event_id'],)).fetchone()
                 if existing:
                     if existing[0] != digest:
-                        raise Conflict('El mismo event_id tiene contenido diferente. Lote rechazado.')
+                        raise Conflict('The same event_id has different content. Batch rejected.')
                     duplicates += 1
                     continue
                 if pending + new >= self.max_pending:
-                    raise Full('Cola llena. Reintentar el mismo lote más tarde.')
+                    raise Full('Queue full. Retry the same batch later.')
                 payload = dict(event, ingested_at=datetime.now(timezone.utc).isoformat(timespec='milliseconds'))
                 db.execute('INSERT INTO outbox(event_id,digest,payload) VALUES (?,?,?)',
                            (event['event_id'], digest, json.dumps(payload, separators=(',', ':'), ensure_ascii=False)))

@@ -19,10 +19,10 @@ def main():
     args=parser.parse_args()
     start=datetime.fromisoformat(args.start.replace('Z','+00:00'))
     if start.tzinfo is None or not 1<=args.fleet<=50 or not 1<=args.positions<=10000000:
-        parser.error('Fecha con zona, 1 a 50 repartidores, 1 a 10000000 posiciones.')
+        parser.error('Date with time zone, 1 to 50 couriers, 1 to 10000000 positions.')
     ticks=(args.positions+args.fleet-1)//args.fleet
     if start+timedelta(seconds=(ticks-1)*2)>datetime.now(timezone.utc):
-        parser.error('La fecha final simulada no puede ser futura; usar una fecha inicial anterior.')
+        parser.error('The simulated end date cannot be in the future; use an earlier start date.')
     run=str(uuid5(NAMESPACE_URL,f'atlas-gps:{iso(start)}:{args.seed}:{args.fleet}:{args.positions}'))
     scenario=Scenario(run,start,args.fleet,args.seed)
     buffers={'courier_positions':[],'order_events':[]}
@@ -63,7 +63,7 @@ def main():
     for kind in buffers:flush(kind)
     report={'run_id':run,'start':iso(start),'seed':args.seed,'fleet':args.fleet,'counts':counts,
         **counters,'submission_seconds':round(time.monotonic()-begin,3),'source_kind':'synthetic',
-        'meaning':'Simulación histórica enviada por API; verificar publicación por run_id. No posiciones observadas.'}
+        'meaning':'Historical simulation sent through the API; verify publishing by run_id. Not observed positions.'}
     path=Path(__file__).resolve().parents[1]/'data/atlas'/f'gps-{run}.json'
     path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))

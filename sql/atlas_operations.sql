@@ -1,4 +1,4 @@
--- Catálogo de demo. Ubicación, importe e identidad comercial son ficticios.
+-- Demo catalog. Location, amount and commercial identity are fictional.
 CREATE TABLE IF NOT EXISTS delivery_atlas.demo_restaurants
 (
     restaurant_id String,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS delivery_atlas.demo_products
 )
 ENGINE = ReplacingMergeTree(version) ORDER BY product_id;
 
--- Telemetría ficticia separada de fuentes públicas y del contrato de clics v1.
+-- Fictional telemetry, separate from public sources and from the v1 click contract.
 CREATE TABLE IF NOT EXISTS delivery_atlas.courier_positions
 (
     schema_version UInt16,
@@ -75,7 +75,7 @@ SELECT simulation_run_id, city_id, courier_id, s.1 AS latitude, s.2 AS longitude
 FROM (SELECT simulation_run_id, city_id, courier_id, argMaxMerge(state) AS s
       FROM delivery_atlas.courier_latest_state GROUP BY simulation_run_id, city_id, courier_id);
 
--- Cada fila es una foto completa e inmutable de un pedido en un estado.
+-- Each row is a complete, immutable snapshot of an order in one status.
 CREATE TABLE IF NOT EXISTS delivery_atlas.order_events
 (
     schema_version UInt16,

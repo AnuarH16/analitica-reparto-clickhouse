@@ -1,16 +1,16 @@
-# Delivery Atlas: chuleta bilingüe
+# Delivery Atlas: bilingual cheat sheet
 
-Guion de la presentación simplificada. Seis diapositivas, unos cinco minutos.
+Script for the simplified presentation. Six slides, about five minutes.
 
-Presentad en inglés. El español ayuda a entender y ensayar. La **negrita negra** marca lo esencial. Los tiempos son orientativos y no están medidos en un ensayo.
+Present in English. The Spanish sections are a study aid for understanding and rehearsing. **Bold** marks the essentials. Timings are approximate and have not been measured in a rehearsal.
 
-PDF: [chuleta EN/ES](../output/pdf/Delivery-Atlas-Cheat-Sheet-Simple-EN-ES.pdf).
+PDF: [EN/ES cheat sheet](../output/pdf/Delivery-Atlas-Cheat-Sheet-Simple-EN-ES.pdf).
 
 ## 1. Delivery Atlas
 
-**Tiempo:** 0:00 - 0:30.
+**Time:** 0:00 - 0:30.
 
-**Qué señalar:** Presentad la idea y señalad qué funciona hoy y qué construiréis después.
+**What to point at:** Introduce the idea and point out what works today and what you will build next.
 
 ### English - what to say
 
@@ -20,7 +20,7 @@ We already have a **working ClickHouse lab with large public datasets**. The del
 
 **Next:** First, what is ClickHouse?
 
-### Español - para entenderlo
+### Spanish - study aid
 
 Nuestro proyecto es **Delivery Atlas**, una aplicación ficticia de reparto inspirada en Uber Eats y Glovo. Queremos **registrar las acciones de los usuarios y mostrarlas en un dashboard**.
 
@@ -30,9 +30,9 @@ Ya tenemos un **entorno de ClickHouse funcionando con grandes datasets públicos
 
 ## 2. What is ClickHouse?
 
-**Tiempo:** 0:30 - 1:10.
+**Time:** 0:30 - 1:10.
 
-**Qué señalar:** Explicad las tres ideas de la izquierda. La tabla es solo un ejemplo sencillo.
+**What to point at:** Explain the three ideas on the left. The table is just a simple example.
 
 ### English - what to say
 
@@ -44,7 +44,7 @@ We run our current database in Docker on one node.
 
 **Next:** These are the datasets we use to test it.
 
-### Español - para entenderlo
+### Spanish - study aid
 
 **ClickHouse es una base de datos diseñada para analizar grandes cantidades de datos**. Guarda la información por columnas, de modo que una consulta puede leer los campos que necesita.
 
@@ -56,9 +56,9 @@ Nuestra base de datos actual funciona en Docker, en un solo nodo.
 
 ## 3. Our data sources
 
-**Tiempo:** 1:10 - 2:00.
+**Time:** 1:10 - 2:00.
 
-**Qué señalar:** Señalad los datos públicos y después la actividad ficticia que proponéis generar.
+**What to point at:** Point to the public data first, then to the fictional activity you propose to generate.
 
 ### English - what to say
 
@@ -70,7 +70,7 @@ For our own app, we propose **simulated food delivery actions**, such as opening
 
 **Next:** Next, this is how we propose to collect and organise app events.
 
-### Español - para entenderlo
+### Spanish - study aid
 
 Los principales datasets son **OTTO y REES46**, con unos **628 millones de eventos históricos de comercio electrónico** en total. Proceden de poblaciones diferentes, por eso los mantenemos separados.
 
@@ -82,9 +82,9 @@ Para nuestra propia aplicación, proponemos **acciones simuladas de reparto**, c
 
 ## 4. Proposed data flow and schema
 
-**Tiempo:** 2:00 - 3:10.
+**Time:** 2:00 - 3:10.
 
-**Qué señalar:** Recorred las flechas y explicad la tabla: una acción, una fila. Aclarad que es una propuesta.
+**What to point at:** Follow the arrows and explain the table: one action, one row. Make clear that it is a proposal.
 
 ### English - what to say
 
@@ -96,7 +96,7 @@ We plan to **group data by month and create daily summaries**. The SQL design ex
 
 **Next:** We have already tested why daily summaries can help.
 
-### Español - para entenderlo
+### Spanish - study aid
 
 El recorrido propuesto es sencillo: **la aplicación genera un evento, Python lo comprueba y ClickHouse lo guarda**. El dashboard consultará los resultados a través de Python.
 
@@ -108,9 +108,9 @@ Queremos **agrupar los datos por mes y crear resúmenes diarios**. El diseño SQ
 
 ## 5. A faster dashboard
 
-**Tiempo:** 3:10 - 4:00.
+**Time:** 3:10 - 4:00.
 
-**Qué señalar:** Señalad las barras: 5,89 segundos frente a 0,21. El resultado es el mismo.
+**What to point at:** Point to the bars: 5.89 seconds vs 0.21. The result is the same.
 
 ### English - what to say
 
@@ -122,7 +122,7 @@ Both queries used ClickHouse. This shows how daily summaries can help the dashbo
 
 **Next:** Finally, this is what works today and what comes next.
 
-### Español - para entenderlo
+### Spanish - study aid
 
 Probamos a **contar los eventos de OTTO por día y tipo**. Leer unos **217 millones de eventos** tardó **5,89 segundos**.
 
@@ -134,9 +134,9 @@ Las dos consultas usaron ClickHouse. Esto muestra cómo los resúmenes diarios p
 
 ## 6. Current progress and next steps
 
-**Tiempo:** 4:00 - 5:00.
+**Time:** 4:00 - 5:00.
 
-**Qué señalar:** Primero lo que ya funciona. Después lo que vais a construir y comprobar.
+**What to point at:** First what already works. Then what you are going to build and check.
 
 ### English - what to say
 
@@ -148,7 +148,7 @@ We also need to **avoid counting repeated requests twice**, test many actions ar
 
 **Next:** Thank you. We can show the dashboard or answer your questions.
 
-### Español - para entenderlo
+### Spanish - study aid
 
 Actualmente, **ClickHouse, los datasets públicos y el dashboard ya funcionan**. También tenemos una comparación de consultas medida.
 

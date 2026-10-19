@@ -102,6 +102,14 @@ class ClickHouse:
                 'source_kind':'synthetic','run_id':run_id,'truncated':len(orders)==200,
                 'snapshot_at':self.query('SELECT toString(now64(3)) AS at')[0]['at']}
 
+    def order(self,run_id,order_id):
+        # A customer's tracking must not depend on the dashboard's 200-order window.
+        rows=self.query("SELECT order_id,courier_id,"
+            "status,amount_minor,currency,toString(event_time) AS event_time "
+            "FROM delivery_atlas.order_latest WHERE simulation_run_id={run:UUID} "
+            "AND order_id={order:UUID} LIMIT 1",{'param_run':run_id,'param_order':order_id})
+        return rows[0] if rows else None
+
     def customers(self,run_id):
         params={'param_run':run_id}
         if not hasattr(self,'_demo_labels'):

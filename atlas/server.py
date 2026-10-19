@@ -135,6 +135,12 @@ def make_handler(store, ch, publisher, simulator):
                         last_batch=publisher.last_batch,last_publish_seconds=publisher.last_publish_seconds))
                 if parsed.path=='/api/simulation':
                     return self.send_json(simulator.snapshot())
+                if parsed.path=='/api/order':
+                    filters=parse_qs(parsed.query,keep_blank_values=True)
+                    if set(filters)!={'run_id','order_id'} or any(len(v)!=1 for v in filters.values()):
+                        raise ValueError('Enviar run_id y order_id una sola vez.')
+                    run=str(UUID(filters['run_id'][0]));order=str(UUID(filters['order_id'][0]))
+                    return self.send_json({'run_id':run,'order_id':order,'order':ch.order(run,order)})
                 if parsed.path in {'/api/operations','/api/track'}:
                     filters=parse_qs(parsed.query,keep_blank_values=True)
                     allowed={'run_id'} if parsed.path=='/api/operations' else {'run_id','courier_id'}

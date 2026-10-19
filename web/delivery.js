@@ -16,7 +16,7 @@ const state = {
   shop: null, product: null,
   cart: new Map(),                                     // product_id -> quantity (un solo restaurante)
   session: null, customer: null,
-  order: null, poll: null, view: 'home',
+  order: null, poll: null, view: 'home', confirming: false,
 };
 
 // ── Identidad ─────────────────────────────────────────────
@@ -217,6 +217,7 @@ function cartTotal() { let t = 0; for (const [id, q] of state.cart) t += state.p
 function cartUnits() { let n = 0; for (const q of state.cart.values()) n += q; return n; }
 
 function addToCart(product) {
+  if (state.confirming) return false;
   const owner = cartShop();
   if (owner && owner !== product.restaurant_id) {
     notice(`Tu carrito es de ${shopName(owner)}. Termina ese pedido o vacía el carrito para pedir aquí.`);
@@ -233,6 +234,7 @@ function addToCart(product) {
   return true;
 }
 function removeFromCart(id) {
+  if (state.confirming) return;
   const product = state.products.find(p => p.product_id === id);
   const left = (state.cart.get(id) || 0) - 1;
   if (left > 0) state.cart.set(id, left); else state.cart.delete(id);
@@ -263,12 +265,12 @@ function renderCart() {
     return li;
   }));
   $('cart-total').textContent = money(cartTotal());
-  $('checkout').disabled = !state.cart.size;
-  $('abandon').disabled = !state.cart.size;
+  updateCheckoutControls();
   if (!state.cart.size && state.view === 'cart') { show(state.shop ? 'restaurant' : 'home'); if (state.shop) renderMenu(); }
 }
 
 function abandon() {
+  if (state.confirming) return;
   if (state.cart.size) track('session_abandoned', 'session');
   state.cart.clear(); state.shop = null; state.query = ''; state.filters.clear();
   $('search').value = '';
@@ -282,7 +284,16 @@ function abandon() {
 // vuelve a pulsar, se reenvía el mismo pedido: la API responde 200 y no crea otro.
 let pendingCheckout = null;
 
+function updateCheckoutControls() {
+  $('checkout').disabled = state.confirming || !state.cart.size;
+  $('checkout').textContent = state.confirming ? 'Confirmando…' : 'Confirmar pedido';
+  $('abandon').disabled = state.confirming || !state.cart.size;
+  $('back').disabled = state.confirming;
+  document.querySelectorAll('#cart-lines button').forEach(button => { button.disabled = state.confirming; });
+}
+
 async function checkout() {
+  if (state.confirming) return;
   const owner = cartShop();
   if (!owner) return;
   pendingCheckout ??= {
@@ -291,7 +302,8 @@ async function checkout() {
     items: [...state.cart].map(([product_id, quantity]) => ({product_id, quantity})),
   };
   const body = pendingCheckout;
-  $('checkout').disabled = true; $('checkout').textContent = 'Confirmando…';
+  state.confirming = true;
+  updateCheckoutControls();
   const ticket = addTicket('order_submitted', {restaurant_id: owner});
   setTicket(ticket, 'sending', 'Enviando a /api/checkout');
   try {
@@ -320,7 +332,8 @@ async function checkout() {
     setTicket(ticket, 'retry', 'Sin respuesta · vuelve a confirmar');
     notice('No hay conexión con la API. Tu pedido no está confirmado; pulsa «Confirmar pedido» otra vez y se reenviará el mismo.');
   } finally {
-    $('checkout').disabled = !state.cart.size; $('checkout').textContent = 'Confirmar pedido';
+    state.confirming = false;
+    updateCheckoutControls();
   }
 }
 
@@ -348,12 +361,14 @@ function paintSteps(status) {
 
 async function pollOrder() {
   const o = state.order;
-  if (!o) return;
+  if (!o || o.polling) return;
+  o.polling = true;
   try {
-    const response = await fetch(`/api/operations?run_id=${encodeURIComponent(o.run_id)}`, {cache: 'no-store'});
+    const response = await fetch(`/api/order?run_id=${encodeURIComponent(o.run_id)}&order_id=${encodeURIComponent(o.order_id)}`, {cache: 'no-store'});
     const data = await response.json();
+    if (state.order !== o) return;
     if (!response.ok) throw new Error(data.error || response.status);
-    const row = (data.orders || []).find(r => r.order_id === o.order_id);
+    const row = data.order;
     if (!row) return;
     paintSteps(row.status);
     const courier = row.courier_id && !/^0{8}-/.test(row.courier_id) ? `repartidor ${row.courier_id.slice(0, 8)}` : 'buscando repartidor';
@@ -361,7 +376,9 @@ async function pollOrder() {
       : `Leído de ClickHouse a las ${new Date().toLocaleTimeString('es-ES')} · ${courier}`;
     if (row.status === 'delivered' || row.status === 'cancelled') clearInterval(state.poll);
   } catch (error) {
-    $('order-live').textContent = `No se pudo consultar el estado (${error.message}). Se reintenta cada 2 s.`;
+    if (state.order === o) $('order-live').textContent = `No se pudo consultar el estado (${error.message}). Se reintenta cada 2 s.`;
+  } finally {
+    o.polling = false;
   }
 }
 

@@ -44,6 +44,8 @@ Un evento se construye una sola vez. Al reintentar se reenvía el mismo objeto, 
 
 El checkout funciona igual: `order_id`, `checkout_event_id` y la hora se fijan al primer intento. Si se cae la red y se pulsa otra vez, se reenvía el mismo pedido y la API responde 200 sin crear otro. Si cambia la cesta, el pedido es otro.
 
+Mientras se espera la respuesta del checkout, quedan bloqueados las cantidades, vaciar el carrito, volver y confirmar de nuevo. Al recibir la respuesta o fallar la conexión se desbloquean; un reintento sin cambiar la cesta conserva los mismos identificadores.
+
 ## Checkout: `POST /api/checkout`
 
 ```json
@@ -70,7 +72,25 @@ Una compra genera tres registros, en el mismo commit de la cola:
 2. `customer_orders`: la cesta con precios del catálogo, `decision_mode = 'manual'` y `source_kind = 'demo_live'`. Para guardar ese valor, `sql/atlas_miniapp.sql` añade `demo_live` al Enum. Es un cambio aditivo que no reescribe filas.
 3. `order_events`: el estado `created`. Después, el simulador asigna repartidor y publica `preparing` → `picked_up` → `en_route` → `delivered` y las posiciones GPS. Todo ello sigue marcado como `synthetic`.
 
-La pantalla de seguimiento consulta `GET /api/operations?run_id=…` cada 2 s y pinta el estado que lee de ClickHouse, no uno inventado en el navegador. En el panel, el pedido aparece en «Pedidos de esta ejecución» como «Miniapp (manual)».
+La pantalla de seguimiento consulta `GET /api/order?run_id=…&order_id=…` cada 2 s y pinta el estado que lee de ClickHouse. Ambos parámetros deben ser UUID y aparecer una sola vez. La respuesta contiene `order: null` mientras el pedido aún no se haya publicado. La consulta busca ese pedido dentro de esa ejecución y sigue encontrándolo aunque quede fuera de los 200 pedidos del panel. En el panel, aparece como «Miniapp (manual)».
+
+## Pruebas de regresión
+
+```bash
+python3 -m unittest discover -s tests -v
+node --test tests/test_delivery_ui.cjs
+```
+
+Las pruebas de JavaScript usan Node sin dependencias adicionales. Cubren cambios de cesta y confirmaciones concurrentes, reintentos, entrega/cancelación fuera de la ventana del panel y respuestas de seguimiento obsoletas.
+
+La prueba de integración de seguimiento se activa con `ATLAS_TEST_CLICKHOUSE_URL`, que debe apuntar a una **instancia desechable** de ClickHouse 25.8, con las credenciales de demo. Crea un pedido entregado y otros 200 activos, publica los eventos mediante la cola y comprueba por HTTP que el pedido entregado sigue consultándose aunque el panel lo omita. Ejemplo con un contenedor temporal sin volúmenes:
+
+```bash
+docker run -d --rm --name atlas-miniapp-test -p 127.0.0.1:18124:8123 -e CLICKHOUSE_DB=delivery -e CLICKHOUSE_USER=demo -e CLICKHOUSE_PASSWORD=demo clickhouse/clickhouse-server:25.8
+# Esperar a que ClickHouse responda antes de lanzar las pruebas.
+ATLAS_TEST_CLICKHOUSE_URL=http://127.0.0.1:18124 python3 -m unittest discover -s tests -v
+docker stop atlas-miniapp-test
+```
 
 ## Comprobar en ClickHouse
 

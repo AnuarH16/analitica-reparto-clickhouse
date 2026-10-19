@@ -1,5 +1,6 @@
 """Miniapp checkout: server-side prices, idempotent retries and delivery of the same order."""
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -11,7 +12,8 @@ from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from atlas.commerce import CommerceEngine, MANUAL_SOURCE
-from atlas.server import make_handler
+from atlas.clickhouse import ClickHouse
+from atlas.server import Publisher, make_handler
 from atlas.simulation import Simulator
 from atlas.store import Store
 
@@ -87,8 +89,14 @@ class ManualCheckoutTests(unittest.TestCase):
 
 
 class FakeCH:
+    def __init__(self):
+        self.orders = {}
+
     def query(self, sql, params=None):
         return [{'result': 1}]
+
+    def order(self, run_id, order_id):
+        return self.orders.get((run_id, order_id))
 
 
 class FakeRuntime:
@@ -112,7 +120,8 @@ class EndpointTests(unittest.TestCase):
         self.store = Store(self.tmp.name + '/outbox.sqlite')
         self.simulator = Simulator(self.store)
         publisher = type('P', (), {'error': None, 'phase': 'idle', 'phase_started': 0, 'last_batch': 0, 'last_publish_seconds': None})()
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.store, FakeCH(), publisher, self.simulator))
+        self.ch = FakeCH()
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.store, self.ch, publisher, self.simulator))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
 
@@ -124,7 +133,48 @@ class EndpointTests(unittest.TestCase):
             with urlopen(Request(self.base + path, json.dumps(body).encode(), {'Content-Type': 'application/json'})) as r:
                 return r.status, json.loads(r.read())
         except HTTPError as error:
-            return error.code, json.loads(error.read())
+            with error:
+                return error.code, json.loads(error.read())
+
+    def get(self, path):
+        try:
+            with urlopen(self.base + path) as response:
+                return response.status, json.loads(response.read())
+        except HTTPError as error:
+            with error:
+                return error.code, json.loads(error.read())
+
+    def test_order_tracking_returns_requested_order_with_200_other_orders(self):
+        run, order = str(uuid4()), str(uuid4())
+        for _ in range(200):
+            self.ch.orders[(run, str(uuid4()))] = {'status': 'preparing'}
+        self.ch.orders[(run, order)] = {'order_id': order, 'status': 'delivered'}
+        status, data = self.get(f'/api/order?run_id={run}&order_id={order}')
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {'run_id': run, 'order_id': order, 'order': self.ch.orders[(run, order)]})
+
+    def test_order_tracking_waits_for_publication_and_does_not_cross_runs(self):
+        run, order = str(uuid4()), str(uuid4())
+        self.ch.orders[(str(uuid4()), order)] = {'order_id': order, 'status': 'delivered'}
+        status, data = self.get(f'/api/order?run_id={run}&order_id={order}')
+        self.assertEqual(status, 200)
+        self.assertIsNone(data['order'])
+
+    def test_order_tracking_rejects_missing_repeated_unknown_or_invalid_filters(self):
+        run, order = str(uuid4()), str(uuid4())
+        valid = f'run_id={run}&order_id={order}'
+        for query in ('', f'run_id={run}', f'order_id={order}', valid + '&extra=1',
+                      valid + f'&order_id={order}', valid + f'&run_id={run}',
+                      f'run_id={run}&order_id=', f'run_id=invalid&order_id={order}',
+                      f'run_id={run}&order_id=invalid'):
+            with self.subTest(query=query):
+                self.assertEqual(self.get('/api/order?' + query)[0], 400)
+
+    def test_order_tracking_reports_database_unavailable(self):
+        def unavailable(*args):
+            raise OSError('offline')
+        self.ch.order = unavailable
+        self.assertEqual(self.get(f'/api/order?run_id={uuid4()}&order_id={uuid4()}')[0], 503)
 
     def test_without_customer_run_nothing_is_created(self):
         status, data = self.post('/api/checkout', request())
@@ -161,6 +211,45 @@ class EndpointTests(unittest.TestCase):
             self.assertTrue((WEB / name).is_file(), name)
             with urlopen(self.base + '/' + name) as r:
                 self.assertEqual(r.status, 200)
+
+
+@unittest.skipUnless(os.environ.get('ATLAS_TEST_CLICKHOUSE_URL'), 'Requires a disposable ClickHouse instance')
+class TrackingIntegrationTests(unittest.TestCase):
+    def test_delivered_order_remains_queryable_outside_dashboard_window(self):
+        ch = ClickHouse()
+        ch.url = os.environ['ATLAS_TEST_CLICKHOUSE_URL'].rstrip('/')
+        ch.init()
+        at = datetime.now(timezone.utc) - timedelta(seconds=120)
+        engine = CommerceEngine(str(uuid4()), at, 1, 101, 42, catalog(), 'policy')
+        body = request(event_time=at.isoformat())
+        rows = engine.manual_checkout(body, at)
+        rows += engine.advance(at + timedelta(seconds=1))
+        rows += engine.advance(at + timedelta(seconds=111))
+        for _ in range(200):
+            rows += engine.manual_checkout(request(), at + timedelta(seconds=112))
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Store(tmp + '/outbox.sqlite')
+            publisher = Publisher(store, ch)
+            store.accept(rows)
+            publisher.once()
+            self.assertEqual(store.status()['pending'], 0)
+            dashboard = ch.operations(engine.run_id)
+            self.assertEqual(len(dashboard['orders']), 200)
+            self.assertEqual(int(dashboard['metrics']['active']), 200)
+            self.assertNotIn(body['order_id'], [order['order_id'] for order in dashboard['orders']])
+            server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(store, ch, publisher, Simulator(store)))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f'http://127.0.0.1:{server.server_port}/api/order?run_id={engine.run_id}&order_id={body["order_id"]}'
+                with urlopen(url) as response:
+                    data = json.loads(response.read())
+                self.assertEqual(data['order']['status'], 'delivered')
+                self.assertEqual(data['order']['order_id'], body['order_id'])
+                self.assertIsNone(ch.order(str(uuid4()), body['order_id']))
+                self.assertIsNone(ch.order(engine.run_id, str(uuid4())))
+            finally:
+                server.shutdown(); server.server_close(); thread.join(); store.close()
 
 
 if __name__ == '__main__':

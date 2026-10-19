@@ -34,30 +34,30 @@ Cada grupo investiga a fondo una base de datos NoSQL, explica sus fundamentos y 
 |---|---|---|
 | Tipo de base de datos | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Encaje en BD2»; [PRESENTACION.md](PRESENTACION.md), «¿Es NoSQL?» | Hecho |
 | Qué problemas resuelve mejor que otras bases | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Experimento que justifica ClickHouse» y «Comparación con una base transaccional» | Hecho |
-| Escenarios en los que se usa habitualmente | Solo se explica nuestro caso. Falta un apartado, con fuentes, sobre usos típicos fuera del proyecto: analítica web y de producto, logs y observabilidad, métricas en series temporales… | Falta |
+| Escenarios en los que se usa habitualmente | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Dónde se usa ClickHouse»: familias de uso de la documentación oficial y empresas de la lista oficial de usuarios, incluidas algunas de reparto | Hecho |
 
 ### 2. Características principales
 
 | Requisito | Dónde | Estado |
 |---|---|---|
 | Modelo de datos y representación | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Modelo de datos»; [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md); [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 3 | Hecho |
-| Consistencia, escalabilidad y disponibilidad | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Consistencia y disponibilidad»; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), CAP y PACELC | Parcial: `TEORIA-APLICADA.md` describe la versión anterior con Flask y Grafana (`app/app.py`, `01_tablas.sql`), no Atlas |
+| Consistencia, escalabilidad y disponibilidad | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Consistencia y disponibilidad»; [TEORIA-APLICADA.md](TEORIA-APLICADA.md), CAP, PACELC, idempotencia y tolerancia a fallos en Atlas | Hecho |
 | Replicación, particionado y tolerancia a fallos | [FUNDAMENTOS.md](FUNDAMENTOS.md); [REVISION-TEORIA.md](REVISION-TEORIA.md), «P4»; [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md), «Integridad y recuperación» | Hecho (explicado; montar varios nodos es opcional) |
 
 ### 3. Arquitectura y funcionamiento
 
 | Requisito | Dónde | Estado |
 |---|---|---|
-| Instalar, desplegar o acceder | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, para Atlas sin descargas grandes; [INSTALACION.md](INSTALACION.md) para el laboratorio con los datasets grandes | Hecho. Arranque de Atlas desde cero comprobado en Windows 11 el 14/10, con los tests en verde |
+| Instalar, desplegar o acceder | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, para Atlas sin descargas grandes; [INSTALACION.md](INSTALACION.md) para el laboratorio con los datasets grandes | Hecho. Arranque desde cero comprobado en Windows 11 ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
 | Comandos y consultas principales | `sql/atlas_consultas.sql`, `sql/atlas_tracking_consultas.sql`, [DEMO.md](DEMO.md), [DEMO-TRACKING.md](DEMO-TRACKING.md) | Hecho |
-| Herramientas y librerías cliente | Se usan `clickhouse-client`, la interfaz HTTP y Python con `urllib`. [DOCUMENTO-TECNICO-EQUIPO.md](DOCUMENTO-TECNICO-EQUIPO.md) cita `clickhouse-connect` en la versión anterior | Parcial: falta presentar las opciones (consola, HTTP, protocolo nativo, librerías de Python y de otros lenguajes, Grafana…) y explicar por qué usamos HTTP |
+| Herramientas y librerías cliente | [FUNDAMENTOS.md](FUNDAMENTOS.md), «Interfaces, clientes y herramientas»: interfaces y puertos, consola, `/play` y `/dashboard`, librerías oficiales, Grafana y por qué Atlas usa HTTP | Hecho |
 
 ### 4. Demo en directo
 
 | Requisito | Dónde | Estado |
 |---|---|---|
 | Datasets reales o semirreales | OTTO, REES46, Ele.me y Glovo: [README](../README.md) y [RESULTADOS.md](RESULTADOS.md). En Atlas, tráfico simulado (`synthetic`) y acciones manuales (`demo_live`); sin el catálogo de Glovo se usa uno de demo | Hecho. Los datasets grandes solo están cargados en el ordenador de Jere; la parte que los use debe hacerse desde ahí |
-| Insertar, consultar, actualizar y borrar | `scripts/crud_demo.py` sobre la tabla de ensayo `delivery.demo_events`. [DEMO-TRACKING.md](DEMO-TRACKING.md) explica por qué no se modifica el histórico | Parcial: el script existe, pero falta encajarlo en el guion de la demo de Atlas ([INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 7) |
+| Insertar, consultar, actualizar y borrar | `scripts/crud_demo.py` sobre la tabla de ensayo `delivery.demo_events`. [DEMO-TRACKING.md](DEMO-TRACKING.md) explica por qué no se modifica el histórico | Parcial: el script funciona (comprobado en Windows el 19/10), pero falta encajarlo en el guion de la demo de Atlas ([INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 7) |
 | Conexión desde un lenguaje de programación | API y publicador en Python (`atlas/`); scripts de carga y consulta (`scripts/`) | Hecho |
 | Caso de uso sencillo y representativo | Delivery Atlas: panel en `http://127.0.0.1:8001/`, seguimiento GPS, clientes simulados y con IA ([AGENTES-CLIENTES.md](AGENTES-CLIENTES.md)) y miniapp comercial (`docs/MINIAPP.md`, en el PR de Anuar) | Hecho; la miniapp está pendiente de merge |
 | Varios nodos | [FUNDAMENTOS.md](FUNDAMENTOS.md) explica `ReplicatedMergeTree`, ClickHouse Keeper y tablas `Distributed` | Opcional (explicado, no montado) |
@@ -76,7 +76,7 @@ Cada grupo investiga a fondo una base de datos NoSQL, explica sus fundamentos y 
 |---|---|---|
 | Presentación de 20 minutos con la demo | [PRESENTACION.md](PRESENTACION.md) es el guion antiguo de Clickstream Lab y reparte 20 minutos de presentación más 10 de demo. [AVANCE-PRESENTACION.md](AVANCE-PRESENTACION.md) es el avance de 5 minutos en inglés. Diapositivas en `presentaciones/` | Falta el guion final de Delivery Atlas en 20 minutos, con la demo dentro |
 | Documentación | [FUNDAMENTOS.md](FUNDAMENTOS.md), [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md), [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), [DOCUMENTO-TECNICO-EQUIPO.md](DOCUMENTO-TECNICO-EQUIPO.md) | Hecho |
-| Instalación paso a paso | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, e [INSTALACION.md](INSTALACION.md) | Parcial: falta la prueba en otro ordenador con registro de sistema, comandos y resultados (`docs/PRUEBAS-EQUIPO.md` en [PLAN-EQUIPO.md](PLAN-EQUIPO.md)) y notas para Windows (`python` en vez de `python3`, saltos de línea) |
+| Instalación paso a paso | [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), apartado 2, e [INSTALACION.md](INSTALACION.md) | Hecho. Prueba en Windows con sistema, comandos, resultados y problemas frecuentes en [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md). Falta la de Echenique en su ordenador |
 | Guía para ejecutar la demo | [DEMO.md](DEMO.md) es la demo antigua del laboratorio OTTO; [DEMO-TRACKING.md](DEMO-TRACKING.md) cubre el seguimiento de Atlas; `docs/MINIAPP.md`, la miniapp | Parcial: falta una guía única que siga el orden de la demo final |
 | Ficheros adicionales | `compose.yaml`, `Dockerfile.atlas`, `sql/`, `atlas/`, `scripts/`, `web/`, `tests/` y capturas en `docs/capturas/` | Hecho |
 
@@ -88,7 +88,7 @@ Cada grupo investiga a fondo una base de datos NoSQL, explica sus fundamentos y 
 | Comprensión técnica | [FUNDAMENTOS.md](FUNDAMENTOS.md) y [ESTRUCTURA-BD.md](ESTRUCTURA-BD.md): motores `MergeTree`, orden físico, particiones, vistas materializadas e idempotencia de la cola |
 | Casos reales, rigor con los datos y argumentos | Procedencia separada: real, derivado, `synthetic` y `demo_live`. Cifras con sus condiciones en [RESULTADOS.md](RESULTADOS.md) y [RESULTADOS-ATLAS.md](RESULTADOS-ATLAS.md) |
 | Calidad y relevancia de la demo | Recorrido completo: miniapp → API → ClickHouse → panel, con un pedido entregado y seguido por GPS |
-| Documentación clara y reproducible | Atlas arranca con una orden y sin datasets grandes; falta la prueba en otro ordenador |
+| Documentación clara y reproducible | Atlas arranca con una orden y sin datasets grandes; prueba registrada en Windows ([PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md)) |
 | Datasets reales, lenguaje de programación y escalabilidad | OTTO, REES46, Ele.me y Glovo; Python; mil millones de filas derivadas y explicación de réplicas y shards |
 | Creatividad del caso | Plataforma de reparto ficticia con clientes con IA, tráfico concurrente y seguimiento GPS |
 | Responder preguntas y debatir | [PRESENTACION.md](PRESENTACION.md), «Argumentos para preguntas», como base para preparar los 10 minutos de preguntas |
@@ -98,12 +98,10 @@ Cada grupo investiga a fondo una base de datos NoSQL, explica sus fundamentos y 
 Por prioridad:
 
 1. **Guion final de 20 minutos** con la demo dentro, y ensayo cronometrado. Actualizar [PRESENTACION.md](PRESENTACION.md), que aún describe Clickstream Lab y 20 + 10 minutos.
-2. **Guía única de la demo final**, paso a paso y con plan B por si algo falla.
+2. **Guía única de la demo final**, paso a paso, con el CRUD dentro y un plan B por si algo falla.
 3. **Integrar la miniapp** (PR de Anuar) en la rama del equipo.
-4. **Meter el CRUD en la demo de Atlas.**
-5. **Probar la instalación en otro ordenador** y registrar el resultado. Añadir `*.sh text eol=lf` a `.gitattributes` para que los scripts de shell no fallen al clonar en Windows.
-6. **Completar la teoría:** usos habituales de ClickHouse, herramientas y librerías cliente, y actualizar [TEORIA-APLICADA.md](TEORIA-APLICADA.md) a Atlas.
-7. **Actualizar [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) y [REVISION-TEORIA.md](REVISION-TEORIA.md):** la tecnología ya está confirmada.
-8. **Declarar el uso de IA**, como pide la guía docente ([REVISION-TEORIA.md](REVISION-TEORIA.md), «Preparación académica»). Añadir Claude, usado para la miniapp y para este documento.
+4. **Prueba de instalación de Echenique** en su ordenador, añadida a [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md).
+
+Hecho el 19/10: usos habituales y clientes de ClickHouse en [FUNDAMENTOS.md](FUNDAMENTOS.md); [TEORIA-APLICADA.md](TEORIA-APLICADA.md) actualizado a Atlas; prueba de instalación en Windows; `*.sh` con saltos LF en `.gitattributes`; tecnología confirmada en [ESTADO-EQUIPO.md](ESTADO-EQUIPO.md) y [REVISION-TEORIA.md](REVISION-TEORIA.md), y Claude añadido a la declaración de uso de IA.
 
 Redactado con ayuda de Claude a partir del enunciado y de los documentos del repositorio; revisado por Anuar.

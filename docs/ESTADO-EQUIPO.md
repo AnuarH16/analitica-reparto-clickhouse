@@ -52,7 +52,7 @@ Para esta versión usar `compose.yaml` y [INSTALACION.md](INSTALACION.md). Se co
 
 ## Encaje con el enunciado
 
-Hay datasets reales, dashboard, integración Python, CRUD, modelo columnar y mediciones. Las guías cubren instalación, arquitectura, consistencia, escalado y reflexión crítica. Se ha ejecutado un nodo: la replicación y el reparto entre nodos están explicados, no demostrados. Falta comprobar que ClickHouse encaja con la tecnología asignada en la sección «Personas»: utiliza SQL y debe presentarse como motor analítico columnar.
+Hay datasets reales, dashboard, integración Python, CRUD, modelo columnar y mediciones. Las guías cubren instalación, arquitectura, consistencia, escalado y reflexión crítica. Se ha ejecutado un nodo: la replicación y el reparto entre nodos están explicados, no demostrados. El profesor confirmó ClickHouse como tecnología del grupo (19/10/2026). Utiliza SQL y debe presentarse como motor analítico columnar. Requisitos y estado de cada uno: [ENUNCIADO.md](ENUNCIADO.md).
 
 ## Dirección del proyecto y decisiones pendientes
 

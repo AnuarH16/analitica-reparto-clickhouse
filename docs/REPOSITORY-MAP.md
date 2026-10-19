@@ -1,6 +1,6 @@
 # Repository map
 
-What every folder and file in this repository is, and whether it is part of the current demo. Written on 19 October 2026 for the `codex/english-translation` branch (team branch with the mini-app and the assignment checklist merged, plus the English translation): 181 tracked files.
+What every folder and file in this repository is, and whether it is part of the current demo. Updated on 19 October 2026 for the team branch with the mini-app, English translation and shared-demo recovery: 184 tracked files.
 
 ## The repository in one minute
 
@@ -138,6 +138,7 @@ Run them from the repository root with `python3` (or `python` on Windows).
 | `build_team_guide.py` | Builds the team guide PDF (content written inside the script) |
 | `build_visual_guide.py` | Builds the 4-page visual guide PDF |
 | `build_shared.mjs` | Prepares the read-only dashboard for Vercel (removes the controls) |
+| `start_shared_demo.py` | Starts the current shared lab, checks its authenticated tunnel and optionally updates and deploys the linked Vercel project |
 
 **Old (generation 1)**
 
@@ -147,7 +148,7 @@ Run them from the repository root with `python3` (or `python` on Windows).
 | `cargar_criteo.sh` | Loads the Criteo Uplift CSV into the first app's database |
 | `consultas_demo.sql` | Demo queries of the first app |
 
-## `tests/` — automated tests (33 in Python, 7 in JavaScript)
+## `tests/` — automated tests (38 in Python, 7 in JavaScript)
 
 Run with `python3 -m unittest discover -s tests -v` and `node --test tests/test_delivery_ui.cjs`. They need no downloads. One Python test needs a disposable ClickHouse and is skipped unless `ATLAS_TEST_CLICKHOUSE_URL` is set (see `docs/MINIAPP.md`).
 
@@ -159,6 +160,8 @@ Run with `python3 -m unittest discover -s tests -v` and `node --test tests/test_
 | `test_delivery_ui.cjs` | 7 | Mini-app JavaScript: cart locked during checkout, concurrent confirmations, retries, stale tracking responses |
 | `test_operations.py` | 5 | GPS and order validation, routing, chronology, deterministic simulation |
 | `test_share.py` | 2 | Allowed routes and parameters of the sharing gateway |
+| `test_operations_reader.py` | 3 | Concurrent HTTP viewers share one snapshot, expired results refresh, failed reads retry |
+| `test_shared_start.py` | 2 | Uses the newest complete Quick Tunnel origin and rejects unrelated hosts |
 
 ## `docs/` — documentation
 

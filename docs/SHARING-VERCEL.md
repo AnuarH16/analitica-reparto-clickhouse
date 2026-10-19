@@ -23,6 +23,28 @@ There is a cache in the gateway: 1.5 s for tracking/status, 10 s for browsing an
 
 ## Prepare and start
 
+For a lab that already has its token files and linked Vercel project, use this
+from the repository root after starting Docker:
+
+```bash
+python3 scripts/start_shared_demo.py --publish
+```
+
+It builds the current code, waits for ClickHouse, Atlas and the authenticated
+gateway, obtains the current Quick Tunnel address and checks both `status` and
+`operations` through it before updating Preview/Production configuration and
+publishing the linked project. Run it again after recreating the tunnel: its
+temporary address changes. Without `--publish` it starts and checks the shared
+lab but does not update Vercel. Keep the computer awake during the demo.
+
+Atlas shares one operations snapshot for 1.5 seconds between concurrent local
+and public viewers; its ClickHouse client uses two query threads. ClickHouse,
+Atlas and the gateway recover after unexpected container exits. Stop the old
+Flask/Grafana stack before running Atlas so its second ClickHouse does not
+compete for the classroom machine's memory. No data volume needs to be deleted.
+
+The steps below document the initial setup and the individual commands.
+
 1. Start Atlas by following [TRACKING-DEMO.md](TRACKING-DEMO.md). Start the fleet from http://127.0.0.1:8001/.
 2. Create a token and the local files without printing it:
 
@@ -62,4 +84,7 @@ Vercel hosts the website and one function per request. The permanent process and
 docker compose -f compose.yaml -f compose.share.yaml stop share-tunnel share-gateway
 ```
 
-This does not delete data or stop ClickHouse or the local demo. To open another session, check the current tunnel URL, update `ATLAS_SHARE_ORIGIN` if it changed and deploy again. Automatic start of the tunnel or the simulator after restarting the computer has not been configured.
+This does not delete data or stop ClickHouse or the local demo. To open another
+session, run `scripts/start_shared_demo.py --publish` again. The tunnel and the
+simulator are deliberately started for each session; starting Docker alone does
+not configure a new public address or resume an interrupted simulation.

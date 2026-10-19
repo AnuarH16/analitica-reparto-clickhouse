@@ -15,7 +15,7 @@ class ClickHouse:
 
     def execute(self, sql, params=None):
         settings = {'date_time_input_format': 'best_effort', 'async_insert': '0',
-                    'wait_end_of_query': '1', 'max_threads':'4', **(params or {})}
+                    'wait_end_of_query': '1', 'max_threads':'2', **(params or {})}
         request = Request(self.url+'/?'+urlencode(settings), data=sql.encode(),
                           headers={'Authorization': 'Basic '+self.auth})
         try:

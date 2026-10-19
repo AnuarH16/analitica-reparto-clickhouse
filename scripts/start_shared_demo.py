@@ -29,7 +29,7 @@ def main():
     project = json.loads((ROOT / '.vercel/project.json').read_text()) if args.publish else None
     subprocess.run(COMPOSE + ['up', '-d', '--build', '--wait', '--wait-timeout', '120',
                              'clickhouse', 'atlas', 'share-gateway', 'share-tunnel'], cwd=ROOT, check=True)
-    deadline = time.monotonic() + 45
+    deadline = time.monotonic() + 90
     while True:
         try:
             logs = subprocess.run(COMPOSE + ['logs', '--no-color', 'share-tunnel'],
@@ -40,9 +40,10 @@ def main():
                 with urlopen(request, timeout=10) as response:
                     json.load(response)
             break
-        except (OSError, ValueError):
+        except (OSError, ValueError) as error:
             if time.monotonic() >= deadline:
                 raise SystemExit('The authenticated tunnel did not become ready. No Vercel deployment was published.')
+            print('Waiting for authenticated tunnel:', type(error).__name__, flush=True)
             time.sleep(1)
     (sharing / 'origin').write_text(origin + '\n')
     print('Authenticated tunnel ready:', origin, flush=True)

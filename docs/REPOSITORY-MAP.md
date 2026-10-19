@@ -1,6 +1,6 @@
 # Repository map
 
-What every folder and file in this repository is, and whether it is part of the current demo. Updated on 19 October 2026 for the team branch with the mini-app, English translation and shared-demo recovery: 184 tracked files.
+What every folder and file in this repository is, and whether it is part of the current demo. Updated on 19 October 2026 for the team branch with the mini-app, English translation and shared-demo recovery: 185 tracked files.
 
 ## The repository in one minute
 

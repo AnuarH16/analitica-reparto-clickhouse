@@ -1,6 +1,14 @@
 # Sharing Delivery Atlas on Vercel
 
-**Published:** https://delivery-atlas-demo.vercel.app. Verification: [evidence of the public flow](evidencia-vercel.json). The seven routes responded, the simulated times/positions advanced and a write returned 405. There was an initial 503; the dashboard recovered the connection through its retries. Neither availability nor delay is guaranteed: the first public check observed several seconds of data age. Shared access separates query locks per endpoint, so that a slow inventory load does not block tracking.
+**Published:** https://delivery-atlas-demo.vercel.app. Latest verification on 19
+October: [stability evidence](evidencia-estabilidad.json). The local and public
+routes passed all 23 HTTP checks. A 200-customer / 80-courier run served eight
+concurrent viewers for 20 rounds without a 503; a manual order was delivered with
+48 GPS positions from one courier. The API recovered after its process exited in
+2.64 seconds. All 38 Python tests, including the real ClickHouse integration, and
+7 JavaScript tests passed. Public operations requests in the final stress timing
+sample reached 8.542 seconds; this local demo does not guarantee availability or
+delay. Earlier verification: [public-flow evidence](evidencia-vercel.json).
 
 ## Architecture of this demo
 

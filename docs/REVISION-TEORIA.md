@@ -6,7 +6,7 @@ Fecha: 5 de octubre de 2026. Esta revisión compara los materiales de `recursos/
 
 **El proyecto encaja como infraestructura de analítica de eventos para una plataforma ficticia de comida a domicilio.** La guía incluye almacenamiento por columnas, modelado, ingesta, data warehouses y streaming. El trabajo actual demuestra almacenamiento y consultas masivas. El siguiente paso debe completar el contrato y la ingesta de la aplicación ficticia, y medir sus garantías. Ya hay volumen suficiente.
 
-ClickHouse es un sistema analítico por columnas con SQL y esquema tipado. Conviene presentarlo como OLAP y justificar esa elección por sus patrones de lectura y agregación. Almacenamiento columnar de ClickHouse y modelo wide-column de Cassandra son conceptos distintos. Los recursos entregados no incluyen la sección **Personas** que asigna las tecnologías, así que esta revisión no confirma la elegibilidad administrativa de ClickHouse para la entrega.
+ClickHouse es un sistema analítico por columnas con SQL y esquema tipado. Conviene presentarlo como OLAP y justificar esa elección por sus patrones de lectura y agregación. Almacenamiento columnar de ClickHouse y modelo wide-column de Cassandra son conceptos distintos. Los recursos entregados no incluyen la sección **Personas** que asigna las tecnologías, pero el profesor confirmó ClickHouse para el grupo (19/10/2026).
 
 ## Contraste con los apuntes
 
@@ -57,7 +57,7 @@ Si queda tiempo, probar réplicas mediante `ReplicatedMergeTree` y ClickHouse Ke
 
 ## Preparación académica
 
-La guía, página 5, pide justificar y citar la ayuda de IA y verificar sus resultados. Este trabajo ha usado Codex para revisión del código, documentación y creación de diapositivas. La portada es una ilustración generada con IA. Las medidas proceden de los informes del proyecto y las decisiones requieren defensa del grupo. El identificador exacto de modelo de cada ejecución anterior no queda registrado en estos archivos, y no se atribuye una versión inventada.
+La guía, página 5, pide justificar y citar la ayuda de IA y verificar sus resultados. Este trabajo ha usado Codex para revisión del código, documentación y creación de diapositivas. También se ha usado Claude (Anthropic) para la miniapp comercial, la checklist del enunciado, las pruebas de instalación en Windows y la ampliación de la teoría. La portada es una ilustración generada con IA. Las medidas proceden de los informes del proyecto y las decisiones requieren defensa del grupo. El identificador exacto de modelo de cada ejecución anterior no queda registrado en estos archivos, y no se atribuye una versión inventada.
 
 ## Fuentes
 

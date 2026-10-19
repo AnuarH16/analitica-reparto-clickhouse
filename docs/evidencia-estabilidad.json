@@ -1,0 +1,173 @@
+{
+  "checked_at_utc": "2026-10-19T14:35:47.152086+00:00",
+  "stress_run_id": "3a9eefdc-0793-4f00-bde5-8bb010af1c15",
+  "customers": 200,
+  "couriers": 80,
+  "initial_concurrent_rounds": 20,
+  "viewers_per_round": 8,
+  "additional_measured_rounds": 3,
+  "operations": {
+    "local": {
+      "requests": 19,
+      "median_seconds": 1.212,
+      "p95_seconds": 2.809,
+      "max_seconds": 2.809
+    },
+    "public": {
+      "requests": 7,
+      "median_seconds": 3.623,
+      "p95_seconds": 8.542,
+      "max_seconds": 8.542
+    }
+  },
+  "http_checks": [
+    {
+      "base": "local",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/atlas-dashboard.js",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/atlas-dashboard.css",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/status",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/simulation",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/operations",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/summary?city_id=madrid&source_kind=synthetic",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/inventory",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/catalog",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/track?run_id=3a9eefdc-0793-4f00-bde5-8bb010af1c15&courier_id=0143a1c2-2bcc-52c9-92ce-5f308bddf541",
+      "status": 200
+    },
+    {
+      "base": "local",
+      "path": "/api/not-an-endpoint",
+      "status": 404
+    },
+    {
+      "base": "public",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/atlas-dashboard.js",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/atlas-dashboard.css",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/status",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/simulation",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/operations",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/summary?city_id=madrid&source_kind=synthetic",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/inventory",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/catalog",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/track?run_id=3a9eefdc-0793-4f00-bde5-8bb010af1c15&courier_id=0143a1c2-2bcc-52c9-92ce-5f308bddf541",
+      "status": 200
+    },
+    {
+      "base": "public",
+      "path": "/api/not-an-endpoint",
+      "status": 404
+    },
+    {
+      "base": "public",
+      "path": "/api/status",
+      "method": "POST",
+      "status": 405
+    }
+  ],
+  "manual_order_id": "73c61236-9786-4ef0-929a-34b1896e1e7b",
+  "stored_order_states": [
+    "created",
+    "delivered",
+    "en_route",
+    "picked_up",
+    "preparing"
+  ],
+  "manual_checkout_idempotent": true,
+  "manual_order_delivered": true,
+  "checkout_link_verified": true,
+  "gps": {
+    "couriers": 1,
+    "positions": 48
+  },
+  "api_recovery": {
+    "api_exit_recovered_without_manual_start": true,
+    "signal": "SIGTERM",
+    "recovery_seconds": 2.64,
+    "restart_count_before": 0,
+    "restart_count_after": 1
+  },
+  "python_tests_passed": 38,
+  "javascript_tests_passed": 7,
+  "clickhouse_version": "25.8",
+  "active_demo": {
+    "run_id": "17b2a3ac-4409-4683-96e3-9730b3609db3",
+    "customers": 24,
+    "couriers": 12,
+    "mode": "traffic"
+  },
+  "scope": "Initial sustained concurrency run plus final timing sample on this local lab and public demo; fictional traffic and purchases, no latency SLA."
+}

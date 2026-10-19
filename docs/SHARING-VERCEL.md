@@ -1,6 +1,14 @@
 # Sharing Delivery Atlas on Vercel
 
-**Published:** https://delivery-atlas-demo.vercel.app. Verification: [evidence of the public flow](evidencia-vercel.json). The seven routes responded, the simulated times/positions advanced and a write returned 405. There was an initial 503; the dashboard recovered the connection through its retries. Neither availability nor delay is guaranteed: the first public check observed several seconds of data age. Shared access separates query locks per endpoint, so that a slow inventory load does not block tracking.
+**Published:** https://delivery-atlas-demo.vercel.app. Latest verification on 19
+October: [stability evidence](evidencia-estabilidad.json). The local and public
+routes passed all 23 HTTP checks. A 200-customer / 80-courier run served eight
+concurrent viewers for 20 rounds without a 503; a manual order was delivered with
+48 GPS positions from one courier. The API recovered after its process exited in
+2.64 seconds. All 38 Python tests, including the real ClickHouse integration, and
+7 JavaScript tests passed. Public operations requests in the final stress timing
+sample reached 8.542 seconds; this local demo does not guarantee availability or
+delay. Earlier verification: [public-flow evidence](evidencia-vercel.json).
 
 ## Architecture of this demo
 
@@ -22,6 +30,28 @@ The website is visible to anyone who has its link. Vercel and Cloudflare carry *
 There is a cache in the gateway: 1.5 s for tracking/status, 10 s for browsing and 60 s for catalog/inventory, with a maximum of 128 keys. It groups queries from several viewers; it adds delay compared with the local dashboard. The visual interval is still not a latency guarantee.
 
 ## Prepare and start
+
+For a lab that already has its token files and linked Vercel project, use this
+from the repository root after starting Docker:
+
+```bash
+python3 scripts/start_shared_demo.py --publish
+```
+
+It builds the current code, waits for ClickHouse, Atlas and the authenticated
+gateway, obtains the current Quick Tunnel address and checks both `status` and
+`operations` through it before updating Preview/Production configuration and
+publishing the linked project. Run it again after recreating the tunnel: its
+temporary address changes. Without `--publish` it starts and checks the shared
+lab but does not update Vercel. Keep the computer awake during the demo.
+
+Atlas shares one operations snapshot for 1.5 seconds between concurrent local
+and public viewers; its ClickHouse client uses two query threads. ClickHouse,
+Atlas and the gateway recover after unexpected container exits. Stop the old
+Flask/Grafana stack before running Atlas so its second ClickHouse does not
+compete for the classroom machine's memory. No data volume needs to be deleted.
+
+The steps below document the initial setup and the individual commands.
 
 1. Start Atlas by following [TRACKING-DEMO.md](TRACKING-DEMO.md). Start the fleet from http://127.0.0.1:8001/.
 2. Create a token and the local files without printing it:
@@ -62,4 +92,7 @@ Vercel hosts the website and one function per request. The permanent process and
 docker compose -f compose.yaml -f compose.share.yaml stop share-tunnel share-gateway
 ```
 
-This does not delete data or stop ClickHouse or the local demo. To open another session, check the current tunnel URL, update `ATLAS_SHARE_ORIGIN` if it changed and deploy again. Automatic start of the tunnel or the simulator after restarting the computer has not been configured.
+This does not delete data or stop ClickHouse or the local demo. To open another
+session, run `scripts/start_shared_demo.py --publish` again. The tunnel and the
+simulator are deliberately started for each session; starting Docker alone does
+not configure a new public address or resume an interrupted simulation.

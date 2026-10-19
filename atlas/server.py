@@ -21,6 +21,27 @@ MAX_BATCH = 5000
 MAX_BODY = 5 * 1024 * 1024
 ROOT = Path(__file__).resolve().parents[1]
 
+class OperationsReader:
+    """Share one recent analytical snapshot between concurrent viewers."""
+    def __init__(self, ch, ttl=1.5):
+        self.ch = ch
+        self.ttl = ttl
+        self.lock = threading.Lock()
+        self.cache = {}
+
+    def get(self, run):
+        # Keep the lock through the read: waiting viewers reuse its completed
+        # snapshot instead of starting another group of ClickHouse queries.
+        with self.lock:
+            cached = self.cache.get(run)
+            if cached and time.monotonic() - cached[0] < self.ttl:
+                return cached[1]
+            body = self.ch.operations(run)
+            self.cache[run] = (time.monotonic(), body)
+            while len(self.cache) > 8:
+                del self.cache[next(iter(self.cache))]
+            return body
+
 class Publisher:
     def __init__(self, store, ch):
         self.store, self.ch = store, ch
@@ -61,6 +82,7 @@ class Publisher:
                 self.stop.wait(2)
 
 def make_handler(store, ch, publisher, simulator):
+    operations_reader = OperationsReader(ch)
     class Handler(BaseHTTPRequestHandler):
         def send_json(self, data, status=200):
             raw = json.dumps(data, ensure_ascii=False).encode()
@@ -70,8 +92,11 @@ def make_handler(store, ch, publisher, simulator):
             self.send_header('Cache-Control', 'no-store')
             if status == 503:
                 self.send_header('Retry-After', '2')
-            self.end_headers()
-            self.wfile.write(raw)
+            try:
+                self.end_headers()
+                self.wfile.write(raw)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # A disconnected viewer must not trigger another response.
 
         def do_POST(self):
             route=urlparse(self.path).path
@@ -154,7 +179,7 @@ def make_handler(store, ch, publisher, simulator):
                     if parsed.path=='/api/track':
                         courier=str(UUID(filters.get('courier_id',[''])[0]))
                         return self.send_json({'run_id':run,'courier_id':courier,'rows':ch.history(run,courier)})
-                    return self.send_json(ch.operations(run))
+                    return self.send_json(operations_reader.get(run))
                 if parsed.path=='/api/catalog':
                     if not ch.query('EXISTS TABLE delivery.glovo_products')[0]['result']:
                         return self.send_json({'rows':[],'meaning':'Glovo catalog not loaded on this computer. The simulation does not need it.'})

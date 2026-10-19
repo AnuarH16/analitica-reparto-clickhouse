@@ -19,15 +19,15 @@ class CommerceEngine:
         self.start=start;self.mode=mode;self.model=model;self.seed=seed
         self.shops={s['restaurant_id']:s for s in catalog['restaurants']}
         self.products={p['product_id']:p for p in catalog['products']}
-        if not self.shops or not self.products:raise ValueError('El catálogo de demo está vacío.')
+        if not self.shops or not self.products:raise ValueError('The demo catalog is empty.')
         self.customers={};self.couriers={};self.orders={};self.tick=0
         for i in range(customers):
             cid=self.uid('customer',i)
             budget=1400+(i%4)*400
-            self.customers[cid]={'customer_id':cid,'index':i,'label':f'Cliente {i+1:02}',
+            self.customers[cid]={'customer_id':cid,'index':i,'label':f'Customer {i+1:02}',
                 'decision_mode':('ollama' if i<3 else 'traffic') if mode=='hybrid' else mode,
                 'traffic_next_at':start+timedelta(seconds=random.Random(seed+i).uniform(0,8)),
-                'budget':budget,'objective':f'Quiero cenar por menos de {budget/100:.2f} EUR y comprar una opción que me convenga.',
+                'budget':budget,'objective':f'I want dinner for less than {budget/100:.2f} EUR and to buy an option that suits me.',
                 'cycle':0,'revision':0,'stage':'idle','restaurant_id':None,'product_id':None,
                 'cart':{},'steps':0,'order_id':None,'ready_at':start,'session_id':self.uid('session',i,0)}
         for i in range(fleet):
@@ -72,7 +72,7 @@ class CommerceEngine:
             choices['remove_from_cart']=[{'id':p,'name':self.products[p]['product_name'][:90]} for p in c['cart']]
             if product_choices and sum(c['cart'].values())<5:
                 allowed.insert(1,'open_product');choices['open_product']=product_choices
-        else:raise ValueError('Estado de cliente inválido.')
+        else:raise ValueError('Invalid customer state.')
         return {'customer_index':c['index'],'objective':c['objective'],'budget_minor':c['budget'],
             'stage':stage,'steps':c['steps'],'cart_total_minor':self.total(c),
             'cart':[{'name':self.products[p]['product_name'][:90],'quantity':q} for p,q in c['cart'].items()],
@@ -93,23 +93,23 @@ class CommerceEngine:
         c=self.customers[cid];context=self.context(cid,at)
         if not context or revision!=c['revision']:return []
         if not isinstance(decision,dict) or set(decision)!={'action','choice','reason'}:
-            raise ValueError('La decisión debe contener action, choice y reason.')
+            raise ValueError('The decision must contain action, choice and reason.')
         action=decision['action'];index=decision['choice'];reason=decision['reason']
         if action not in context['allowed'] or type(index) is not int or index<0 or not isinstance(reason,str) or not 0<len(reason)<=240:
-            raise ValueError('Acción, opción o explicación no permitidas.')
+            raise ValueError('Action, choice or explanation not allowed.')
         options=context['choices'].get(action,[])
         if (options and index>=len(options)) or (not options and index!=0):
-            raise ValueError('La opción no pertenece al catálogo visible.')
+            raise ValueError('The choice does not belong to the visible catalog.')
         choice=options[index] if options else None
         mode=c['decision_mode']
-        if c['steps']>=14:action='abandon';reason='Límite de pasos por sesión alcanzado.';mode='system'
+        if c['steps']>=14:action='abandon';reason='Step limit per session reached.';mode='system'
         c['revision']+=1;c['steps']+=1
         mapping={'search':'search','open_restaurant':'restaurant_opened','open_product':'product_opened',
             'add_to_cart':'cart_added','remove_from_cart':'cart_removed','checkout':'order_submitted','abandon':'session_abandoned'}
         if action=='search':c['stage']='results'
         elif action=='open_restaurant':
             if c['cart'] and c['restaurant_id']!=choice['id']:
-                raise ValueError('No cambiar de restaurante con un carrito abierto.')
+                raise ValueError('Do not switch restaurants with an open cart.')
             c['restaurant_id']=choice['id'];c['product_id']=None;c['stage']='restaurant'
         elif action=='open_product':c['product_id']=choice['id'];c['stage']='product'
         elif action=='add_to_cart':
@@ -120,9 +120,9 @@ class CommerceEngine:
             c['stage']='cart' if c['cart'] else 'restaurant'
         elif action=='abandon':c['stage']='abandoned';c['ready_at']=at+timedelta(seconds=8)
         elif action=='checkout':
-            if not c['cart'] or self.total(c)>c['budget']:raise ValueError('Carrito vacío o fuera de presupuesto.')
+            if not c['cart'] or self.total(c)>c['budget']:raise ValueError('Cart empty or over budget.')
             if sum(o['status'] not in {'delivered','cancelled'} for o in self.orders.values())>=max(100,len(self.customers)*2):
-                raise ValueError('La operación tiene demasiados pedidos pendientes.')
+                raise ValueError('The operation has too many pending orders.')
             c['order_id']=self.uid('order',c['session_id']);c['stage']='waiting_delivery'
         nav=validate({'schema_version':1,'event_id':self.uid('click',cid,c['revision']),
             'session_id':c['session_id'],'user_id':cid,'event_time':iso(at),'event_type':mapping[action],
@@ -158,31 +158,31 @@ class CommerceEngine:
             raise ValueError('Checkout: enviar '+', '.join(sorted(MANUAL_FIELDS))+'.')
         ids={k:str(UUID(request[k])) for k in ('order_id','customer_id','session_id','checkout_event_id')
              if isinstance(request[k],str)}
-        if len(ids)!=4:raise ValueError('Checkout: identificadores UUID requeridos.')
+        if len(ids)!=4:raise ValueError('Checkout: UUID identifiers required.')
         oid=ids['order_id']
         if oid in self.orders:
             if self.orders[oid].get('checkout_event_id')!=ids['checkout_event_id']:
-                raise ValueError('Ese order_id ya pertenece a otra compra.')
+                raise ValueError('That order_id already belongs to another purchase.')
             return []
         shop=self.shops.get(request['restaurant_id'])
-        if not shop:raise ValueError('Restaurante desconocido en el catálogo de esta ejecución.')
+        if not shop:raise ValueError('Unknown restaurant in the catalog of this run.')
         items=request['items']
         if not isinstance(items,list) or not 1<=len(items)<=20:
-            raise ValueError('La cesta debe tener entre 1 y 20 líneas.')
+            raise ValueError('The basket must have between 1 and 20 lines.')
         cart={}
         for line in items:
             if not isinstance(line,dict) or set(line)!={'product_id','quantity'}:
-                raise ValueError('Cada línea: {product_id, quantity}.')
+                raise ValueError('Each line: {product_id, quantity}.')
             p=self.products.get(line['product_id']);q=line['quantity']
             if not p or p['restaurant_id']!=shop['restaurant_id']:
-                raise ValueError('Producto desconocido o de otro restaurante.')
+                raise ValueError('Unknown product or from another restaurant.')
             if type(q) is not int or not 1<=q<=10 or p['product_id'] in cart:
-                raise ValueError('Cantidad entre 1 y 10 y sin productos repetidos.')
+                raise ValueError('Quantity between 1 and 10, with no repeated products.')
             cart[p['product_id']]=q
-        if sum(cart.values())>20:raise ValueError('Máximo 20 unidades por pedido.')
-        # Mismo límite de pedidos abiertos que el checkout de los clientes simulados.
+        if sum(cart.values())>20:raise ValueError('Maximum 20 units per order.')
+        # Same limit on open orders as the simulated customers' checkout.
         if sum(o['status'] not in {'delivered','cancelled'} for o in self.orders.values())>=max(100,len(self.customers)*2):
-            raise ValueError('La operación tiene demasiados pedidos pendientes.')
+            raise ValueError('The operation has too many pending orders.')
         amount=sum(self.products[p]['price_minor']*q for p,q in cart.items())
         city=shop.get('city_id') or 'madrid'
         # Same contract as every navigation event; the client event_time is kept so a
@@ -224,7 +224,7 @@ class CommerceEngine:
                 c['session_id']=self.uid('session',c['index'],c['cycle']);c['revision']+=1;c['registered']=False
             if not c.get('registered'):
                 c['registered']=True;c['revision']+=1
-                rows.append(self.activity(c,at,'session_started','Comienza una sesión de cliente ficticio.','system'))
+                rows.append(self.activity(c,at,'session_started','A fictional customer session starts.','system'))
         for o in list(self.orders.values()):
             if o['status'] in {'delivered','cancelled'}:continue
             if not o['courier_id']:
@@ -242,7 +242,7 @@ class CommerceEngine:
                 courier['position']=position
                 if o['status']=='delivered' and not o.get('manual'):
                     c=self.customers[o['customer_id']];c['stage']='delivered';c['revision']+=1;c['ready_at']=at+timedelta(seconds=12)
-                    rows.append(self.activity(c,at,'delivery_completed','El pedido confirmado por este cliente se ha entregado.','system'))
+                    rows.append(self.activity(c,at,'delivery_completed','The order confirmed by this customer has been delivered.','system'))
             if (o['status'],o['courier_id'])!=o['last_marker']:rows.append(self.order_event(o,at))
         for courier in self.couriers.values():
             oid=courier['order_id'];o=self.orders.get(oid);speed=0

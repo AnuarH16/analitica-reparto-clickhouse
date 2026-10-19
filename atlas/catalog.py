@@ -6,7 +6,7 @@ from atlas.simulation import restaurant_location
 
 NAMES=['Casa Río','Mesa Verde','Barrio Bento','La Cocina Azul','Horno Central','Taco Patio',
        'Cuchara Norte','Pasta de Casa','Curry del Barrio','Huerta y Pan','La Mesa Roja','Nómada Bowl']
-FALLBACK=['Bowl de verduras','Menú de la casa','Ensalada del día']
+FALLBACK=['Vegetable bowl','House menu','Salad of the day']
 
 def seed_demo_catalog(ch):
     if int(ch.query('SELECT count() AS n FROM delivery_atlas.demo_products FINAL')[0]['n'])==36 and int(ch.query('SELECT count() AS n FROM delivery_atlas.demo_restaurants FINAL')[0]['n'])==12:

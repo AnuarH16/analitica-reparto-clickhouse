@@ -76,22 +76,22 @@ def make_handler(store, ch, publisher, simulator):
         def do_POST(self):
             route=urlparse(self.path).path
             if route not in {'/api/events','/api/operations','/api/simulation/start','/api/simulation/stop','/api/checkout'}:
-                return self.send_json({'error':'Ruta desconocida'}, 404)
+                return self.send_json({'error':'Unknown route'}, 404)
             self.connection.settimeout(15)
             try:
                 size = int(self.headers.get('Content-Length', '0'))
                 if not 0 < size <= MAX_BODY:
-                    return self.send_json({'error':'Cuerpo requerido, máximo 5 MiB'}, 413)
+                    return self.send_json({'error':'Body required, maximum 5 MiB'}, 413)
                 raw = self.rfile.read(size)
                 if len(raw) != size:
-                    raise ValueError('Cuerpo incompleto')
+                    raise ValueError('Incomplete body')
                 data = json.loads(raw)
                 if route=='/api/simulation/start':
                     if not isinstance(data,dict) or set(data)-{'fleet','interval','seed','mode','customers','agent_mode'}:
-                        raise ValueError('Configuración de simulación desconocida.')
+                        raise ValueError('Unknown simulation configuration.')
                     return self.send_json(simulator.start(**data,ch=ch),202)
                 if route=='/api/simulation/stop':
-                    if data!={}:raise ValueError('Enviar {} para parar.')
+                    if data!={}:raise ValueError('Send {} to stop.')
                     return self.send_json(simulator.stop())
                 if route=='/api/checkout':
                     # Miniapp checkout: 202 queued, 200 retry of an accepted order,
@@ -99,7 +99,7 @@ def make_handler(store, ch, publisher, simulator):
                     try:
                         result=simulator.checkout(data)
                     except LookupError as error:
-                        return self.send_json({'error':str(error)+' Inicia «Clientes y reparto» en el panel (IA local o política local) y vuelve a confirmar.',
+                        return self.send_json({'error':str(error)+' Click "Start customers and delivery" on the dashboard (Local AI or Local test policy) and place the order again.',
                             'code':'no_customer_run'},409)
                     return self.send_json(result,202 if result['state']=='queued' else 200)
                 if route=='/api/operations':
@@ -145,7 +145,7 @@ def make_handler(store, ch, publisher, simulator):
                     filters=parse_qs(parsed.query,keep_blank_values=True)
                     allowed={'run_id'} if parsed.path=='/api/operations' else {'run_id','courier_id'}
                     if set(filters)-allowed or any(len(v)!=1 for v in filters.values()):
-                        raise ValueError('Filtro desconocido o repetido.')
+                        raise ValueError('Unknown or repeated filter.')
                     run=filters.get('run_id',[simulator.snapshot().get('run_id')])[0]
                     if not run:
                         return self.send_json({'couriers':[],'orders':[],'metrics':{},'positions_by_5s':[],
@@ -157,35 +157,35 @@ def make_handler(store, ch, publisher, simulator):
                     return self.send_json(ch.operations(run))
                 if parsed.path=='/api/catalog':
                     if not ch.query('EXISTS TABLE delivery.glovo_products')[0]['result']:
-                        return self.send_json({'rows':[],'meaning':'Catálogo Glovo no cargado en este ordenador. La simulación no lo necesita.'})
-                    return self.send_json({'meaning':'Muestra del catálogo publicado de Glovo; sin clics ni GPS.',
+                        return self.send_json({'rows':[],'meaning':'Glovo catalog not loaded on this computer. The simulation does not need it.'})
+                    return self.send_json({'meaning':'Sample of the published Glovo catalog; no clicks or GPS.',
                         'rows':ch.query("SELECT source_row,city_code,store_name,product_name,collection_section "
                             "FROM delivery.glovo_products WHERE country_code='ES' AND city_code='MAD' "
                             "ORDER BY store_name,source_row LIMIT 40")})
                 if parsed.path=='/api/demo-catalog':
                     return self.send_json({'restaurants':ch.query('SELECT * EXCEPT version FROM delivery_atlas.demo_restaurants FINAL ORDER BY restaurant_id'),
                         'products':ch.query('SELECT * EXCEPT version FROM delivery_atlas.demo_products FINAL ORDER BY product_id'),
-                        'meaning':'Restaurantes, coordenadas y precios ficticios. Los nombres de productos conservan su procedencia por campo.'})
+                        'meaning':'Fictional restaurants, coordinates and prices. Product names keep their provenance per field.'})
                 if parsed.path=='/api/inventory':
                     # Metadata, not expensive repeated full counts of all historical tables.
                     return self.send_json({'rows':ch.query("SELECT database,name,engine,total_rows,"
                         "formatReadableSize(total_bytes) AS disk FROM system.tables WHERE database IN "
                         "('delivery','delivery_atlas') AND engine NOT IN ('MaterializedView','View') ORDER BY database,name"),
-                        'meaning':'Filas físicas estimadas del catálogo de ClickHouse; fuentes distintas.'})
+                        'meaning':'Physical rows estimated from the ClickHouse catalog; different sources.'})
                 if parsed.path == '/api/summary':
                     multi = parse_qs(parsed.query, keep_blank_values=True)
                     if set(multi)-{'from','to','city_id','source_kind','event_type'} or any(len(v)!=1 for v in multi.values()):
-                        raise ValueError('Filtro desconocido o repetido.')
+                        raise ValueError('Unknown or repeated filter.')
                     filters = {k:v[0] for k,v in multi.items()}
                     if any(not 0<len(v)<=160 for v in filters.values()):
-                        raise ValueError('Filtro vacío o demasiado largo.')
+                        raise ValueError('Empty or too long filter.')
                     for k in ('from','to'):
                         if k in filters:
                             date.fromisoformat(filters[k])
                     if 'from' in filters and 'to' in filters and filters['from']>filters['to']:
-                        raise ValueError('Intervalo invertido.')
+                        raise ValueError('Reversed interval.')
                     if 'source_kind' in filters and filters['source_kind'] not in KINDS or 'event_type' in filters and filters['event_type'] not in ACTIONS:
-                        raise ValueError('Tipo u origen inválido.')
+                        raise ValueError('Invalid type or origin.')
                     return self.send_json(ch.summary(filters))
                 if parsed.path == '/api/recent':
                     return self.send_json({'rows':ch.query('SELECT toString(event_id) AS event_id, '
@@ -194,7 +194,7 @@ def make_handler(store, ch, publisher, simulator):
                         'FROM delivery_atlas.app_events FINAL ORDER BY ingested_at DESC LIMIT 30')})
                 target = (ROOT/'web'/('atlas-dashboard.html' if parsed.path=='/' else parsed.path.lstrip('/'))).resolve()
                 if not target.is_relative_to(ROOT/'web') or not target.is_file():
-                    return self.send_json({'error':'Ruta desconocida'}, 404)
+                    return self.send_json({'error':'Unknown route'}, 404)
                 content = target.read_bytes()
                 mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
                         '.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'}.get(target.suffix, 'application/octet-stream')
@@ -206,7 +206,7 @@ def make_handler(store, ch, publisher, simulator):
             except (ValueError, TypeError) as error:
                 self.send_json({'error':str(error)}, 400)
             except OSError:
-                self.send_json({'error':'ClickHouse no disponible. La cola aceptada se conserva.'}, 503)
+                self.send_json({'error':'ClickHouse not available. The accepted queue is kept.'}, 503)
 
         def log_message(self, *_):
             pass
@@ -223,7 +223,7 @@ def main():
     server = ThreadingHTTPServer((os.environ.get('HOST','127.0.0.1'), int(os.environ.get('PORT','8001'))), make_handler(store,ch,publisher,simulator))
     publisher.thread.start()
     signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
-    print('Delivery Atlas: API y publicador listos', flush=True)
+    print('Delivery Atlas: API and publisher ready', flush=True)
     try:
         server.serve_forever()
     finally:

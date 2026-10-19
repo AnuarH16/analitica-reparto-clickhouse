@@ -22,18 +22,18 @@ def canonical_path(raw):
     url = urlsplit(raw)
     endpoint = url.path.removeprefix('/api/')
     if not url.path.startswith('/api/') or endpoint not in ROUTES:
-        raise ValueError('Ruta no disponible')
+        raise ValueError('Route not available')
     query = parse_qs(url.query, keep_blank_values=True, max_num_fields=4)
     allowed = {'track': {'run_id', 'courier_id'}, 'summary': {'city_id', 'source_kind'}}.get(endpoint, set())
     if set(query) - allowed or any(len(v) != 1 for v in query.values()):
-        raise ValueError('Parámetros no disponibles')
+        raise ValueError('Parameters not available')
     if endpoint == 'track':
         if set(query) != allowed:
-            raise ValueError('Falta el identificador del recorrido')
+            raise ValueError('Missing track identifier')
         query = {k: [str(UUID(v[0]))] for k, v in query.items()}
     if endpoint == 'summary':
         if query.get('city_id', ['madrid'])[0] != 'madrid' or query.get('source_kind', ['synthetic'])[0] not in {'synthetic', 'demo_live'}:
-            raise ValueError('Solo está disponible la demo de Madrid')
+            raise ValueError('Only the Madrid demo is available')
         query.setdefault('city_id', ['madrid'])
         query.setdefault('source_kind', ['synthetic'])
     suffix = urlencode(sorted((k, v[0]) for k, v in query.items()))
@@ -54,17 +54,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_POST(self):
-        self.send_json(405, {'error': 'La demo compartida es de solo lectura'})
+        self.send_json(405, {'error': 'The shared demo is read-only'})
 
     do_PUT = do_PATCH = do_DELETE = do_POST
 
     def do_GET(self):
         if not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + TOKEN):
-            return self.send_json(401, {'error': 'Acceso no autorizado'})
+            return self.send_json(401, {'error': 'Unauthorized access'})
         try:
             endpoint, path = canonical_path(self.path)
         except (ValueError, TypeError):
-            return self.send_json(400, {'error': 'Consulta no disponible'})
+            return self.send_json(400, {'error': 'Query not available'})
         try:
             # Coalesce concurrent viewers into one local query per cache window.
             with READ_LOCKS[endpoint]:
@@ -94,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
                             CACHE.popitem(last=False)
             self.send_json(200, body)
         except Exception:
-            self.send_json(503, {'error': 'El ordenador de Jere no responde. Se reintentará.'})
+            self.send_json(503, {'error': "Jere's computer is not responding. It will be retried."})
 
 
 if __name__ == '__main__':

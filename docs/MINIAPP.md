@@ -10,7 +10,7 @@ A person places an order in a fictional delivery app in Madrid. Every action is 
 docker compose -f compose.yaml --profile atlas up -d --build --wait
 ```
 
-1. Open the dashboard at http://127.0.0.1:8001/. Under "Customers and delivery", choose a customer mode: **Local test policy** or **Traffic simulator** (neither needs Ollama), or **AI + mass traffic**. Then click "Start customers and delivery".
+1. Open the dashboard at http://127.0.0.1:8001/. In the "Live customers and delivery" section, choose a mode under "Decisions": **Local test policy** or **Traffic simulator** (neither needs Ollama), or **AI + mass traffic**. Then click "Start customers and delivery".
 2. Open the mini-app at http://127.0.0.1:8001/delivery.html.
 3. Search, filter, open a restaurant, add dishes and click **Place order**.
 

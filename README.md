@@ -6,7 +6,7 @@ BD2 project to design the analytics infrastructure of a fictional food-delivery 
 
 **Concurrent traffic:** mixed mode with **200 customers (3 AI + 197 simulated) and 80 couriers**, up to 500/150 from the controls. Customers in batches, varied pauses, linked purchases and an activity summary; [guide](docs/AGENTES-CLIENTES.md), test with `python3 scripts/check_traffic.py` on the active scenario.
 
-**Commercial mini-app (14 Oct):** http://127.0.0.1:8001/delivery.html. A person searches, filters, opens a restaurant, fills the cart and checks out. Every action goes to `POST /api/events` (`demo_live`) and checkout (`POST /api/checkout`) creates a real order in the simulation, which is delivered and tracked by GPS. It requires starting "Customers and delivery" on the dashboard. [Guide, events and verification](docs/MINIAPP.md).
+**Commercial mini-app (14 Oct):** http://127.0.0.1:8001/delivery.html. A person searches, filters, opens a restaurant, fills the cart and checks out. Every action goes to `POST /api/events` (`demo_live`) and checkout (`POST /api/checkout`) creates a real order in the simulation, which is delivered and tracked by GPS. It requires clicking "Start customers and delivery" on the dashboard. [Guide, events and verification](docs/MINIAPP.md).
 
 **AI customers connected to delivery (14 Oct):** [start, schema and verification](docs/AGENTES-CLIENTES.md). A local Qwen3 model decides actions; checkout creates the same order that gets assigned and tracked on the map. Fictional purchases and positions, no payment. Enable the `atlas` and `ai` profiles, download the model as the guide explains and open http://127.0.0.1:8001/.
 

@@ -29,12 +29,12 @@ def main():
     assert first['accepted']==1 and retry['accepted']==0 and retry['duplicates']==1
     try:
         call('http://127.0.0.1:8001','/api/events',{'events':[dict(base,city_id='different')]})
-        raise AssertionError('Conflicto no rechazado')
+        raise AssertionError('Conflict not rejected')
     except HTTPError as error:
         assert error.code==409
     try:
         call('http://127.0.0.1:8001','/api/events',{'events':[dict(base,event_id=str(uuid4()),event_type='invalid')]})
-        raise AssertionError('Contrato inválido aceptado')
+        raise AssertionError('Invalid contract accepted')
     except HTTPError as error:
         assert error.code==400
     event_id=base['event_id']
@@ -44,7 +44,7 @@ def main():
             break
         time.sleep(1)
     else:
-        raise AssertionError('El evento no se publicó')
+        raise AssertionError('The event was not published')
     # Simulate a lost acknowledgement after ClickHouse accepted the block.
     second=dict(base,event_id=str(uuid4()))
     with tempfile.TemporaryDirectory() as tmp:
@@ -62,13 +62,13 @@ def main():
                     'ORDER BY event_date,city_id,section,event_type,source_kind')
     aggregate=ch.query('SELECT event_date,city_id,section,event_type,source_kind,events '
                       'FROM delivery_atlas.app_daily_counts ORDER BY event_date,city_id,section,event_type,source_kind')
-    assert detail==aggregate, 'Histórico y agregado no coinciden'
+    assert detail==aggregate, 'History and aggregate do not match'
     assert int(logical['n'])==2
     output={'checked_at':datetime.now(timezone.utc).isoformat(),'run_id':run,
             'http_retry':retry,'conflict_status':409,'invalid_status':400,
             'physical_rows_for_test':int(raw['n']),'logical_events_for_test':int(logical['n']),
             'ambiguous_acknowledgement_replayed':True,'detail_matches_rollup':True,
-            'scope':'Prueba local del recorrido y reintentos, no garantía de entrega exactamente una vez.'}
+            'scope':'Local test of the path and retries, not a guarantee of exactly-once delivery.'}
     dest=ROOT/'data/atlas';dest.mkdir(parents=True,exist_ok=True)
     (dest/'checks.json').write_text(json.dumps(output,ensure_ascii=False,indent=2)+'\n')
     print(json.dumps(output,ensure_ascii=False,indent=2))

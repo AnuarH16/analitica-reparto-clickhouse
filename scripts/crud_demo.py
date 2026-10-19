@@ -40,17 +40,17 @@ def main() -> None:
                 "recorded_at DateTime DEFAULT now(), section String, action String) "
                 "ENGINE = MergeTree ORDER BY event_id")
         event_id = time.time_ns()
-        execute(f"INSERT INTO delivery.demo_events (event_id, section, action) VALUES ({event_id}, 'restaurante', 'abrir')")
+        execute(f"INSERT INTO delivery.demo_events (event_id, section, action) VALUES ({event_id}, 'restaurant', 'open')")
         print("INSERT:", execute(f"SELECT event_id, section, action FROM delivery.demo_events WHERE event_id = {event_id}", True), flush=True)
 
-        execute(f"ALTER TABLE delivery.demo_events UPDATE action = 'abrir_menu' WHERE event_id = {event_id} SETTINGS mutations_sync = 2")
+        execute(f"ALTER TABLE delivery.demo_events UPDATE action = 'open_menu' WHERE event_id = {event_id} SETTINGS mutations_sync = 2")
         print("UPDATE:", execute(f"SELECT event_id, section, action FROM delivery.demo_events WHERE event_id = {event_id}", True), flush=True)
 
         execute(f"ALTER TABLE delivery.demo_events DELETE WHERE event_id = {event_id} SETTINGS mutations_sync = 2")
         remaining = execute(f"SELECT event_id FROM delivery.demo_events WHERE event_id = {event_id}", True)
-        print("DELETE: filas restantes =", len(remaining), flush=True)
+        print("DELETE: rows left =", len(remaining), flush=True)
         if remaining:
-            raise RuntimeError("La eliminación no se reflejó en la consulta")
+            raise RuntimeError("The delete was not reflected in the query")
     finally:
         for table in paused:
             execute(f"SYSTEM START MERGES delivery.{table}")

@@ -26,7 +26,7 @@ def until(fn):
         value=fn()
         if value:return value
         time.sleep(.5)
-    raise RuntimeError('Tiempo agotado esperando publicación.')
+    raise RuntimeError('Timed out waiting for publishing.')
 
 def main():
     ch=ClickHouse()
@@ -50,7 +50,7 @@ def main():
     invalid=dict(gps[0],event_id=str(uuid4()),latitude=95)
     try:send('courier_positions',[invalid])
     except HTTPError as error:assert error.code==400
-    else:raise AssertionError('GPS fuera de rango aceptado')
+    else:raise AssertionError('Out-of-range GPS accepted')
 
     # A failure after first table INSERT leaves the whole mixed batch pending.
     mixed_run=str(uuid4())
@@ -58,14 +58,14 @@ def main():
     class FailSecondInsert(ClickHouse):
         def execute(self,sql,params=None):
             if sql.startswith('INSERT INTO delivery_atlas.order_events'):
-                raise OSError('Fallo inyectado después de insertar posiciones')
+                raise OSError('Failure injected after inserting positions')
             return super().execute(sql,params)
     with tempfile.TemporaryDirectory() as temp:
         store=Store(temp+'/outbox.sqlite')
         store.accept(mixed_gps+mixed_orders)
         try:Publisher(store,FailSecondInsert()).once()
         except OSError:pass
-        else:raise AssertionError('No se inyectó el fallo esperado')
+        else:raise AssertionError('The expected failure was not injected')
         assert store.status()['pending']==4
         Publisher(Store(store.path),ch).once()
         assert Store(store.path).status()['pending']==0
@@ -78,7 +78,7 @@ def main():
         'mixed_batch_recovers':True,'mixed_run':mixed_run,'logical_positions_after_replay':int(rows['logical']),
         'physical_positions_after_replay':int(rows['physical']),
         'latest_couriers_after_replay':len(snapshot['couriers']),'logical_orders_after_replay':int(snapshot['metrics']['orders']),
-        'scope':'Prueba local con fallo inyectado entre INSERTs. No transacción entre tablas ni GPS observado.'}
+        'scope':'Local test with a failure injected between INSERTs. No transaction across tables and no observed GPS.'}
     path=Path(__file__).resolve().parents[1]/'docs/evidencia-tracking.json'
     path.write_text(json.dumps(report,indent=2,ensure_ascii=False)+'\n')
     print(json.dumps(report,indent=2,ensure_ascii=False))

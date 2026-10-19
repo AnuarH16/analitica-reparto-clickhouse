@@ -1,6 +1,6 @@
--- DISEÑO PROPUESTO. No aplicado al servidor ni conectado a la API actual.
--- Base separada para que un eventual ensayo no cambie las tablas históricas.
--- La API debe resolver reintentos duplicados ANTES de publicar eventos y agregados.
+-- PROPOSED DESIGN. Not applied to the server or connected to the current API.
+-- Separate database so that a possible trial run does not change the historical tables.
+-- The API must resolve duplicate retries BEFORE publishing events and aggregates.
 CREATE DATABASE IF NOT EXISTS delivery_proposal;
 
 CREATE TABLE IF NOT EXISTS delivery_proposal.app_events
@@ -31,8 +31,8 @@ ENGINE = MergeTree
 PARTITION BY toYYYYMM(event_date)
 ORDER BY (source_kind, event_date, city_id, event_type, event_time, session_id);
 
--- Solo recuentos por día, ciudad, sección, tipo y procedencia.
--- Las sesiones únicas y los embudos requieren otras consultas/modelos.
+-- Only counts per day, city, section, type and provenance.
+-- Unique sessions and funnels require other queries/models.
 CREATE TABLE IF NOT EXISTS delivery_proposal.app_daily_rollup
 (
     source_kind Enum8('synthetic' = 1, 'demo_live' = 2,
@@ -47,8 +47,8 @@ ENGINE = SummingMergeTree(events)
 PARTITION BY toYYYYMM(event_date)
 ORDER BY (source_kind, event_date, city_id, section, event_type);
 
--- Activar únicamente después de probar el protocolo de reintentos del publicador.
--- La vista procesa cada bloque nuevo. No elimina duplicados por event_id.
+-- Enable only after testing the publisher's retry protocol.
+-- The view processes each new block. It does not remove duplicates by event_id.
 CREATE MATERIALIZED VIEW IF NOT EXISTS delivery_proposal.app_daily_rollup_mv
 TO delivery_proposal.app_daily_rollup AS
 SELECT source_kind, event_date, city_id, section, event_type, count() AS events

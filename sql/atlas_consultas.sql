@@ -1,17 +1,17 @@
--- Recuento lógico independiente de las fusiones.
-SELECT count() AS eventos FROM delivery_atlas.app_events FINAL;
+-- Logical count, independent of merges.
+SELECT count() AS events FROM delivery_atlas.app_events FINAL;
 
--- Agregado para el dashboard. Cada clave puede tener varias filas físicas.
+-- Aggregate for the dashboard. Each key can have several physical rows.
 SELECT event_date, city_id, event_type, source_kind, sum(events) AS events
 FROM delivery_atlas.app_daily_counts
 GROUP BY event_date, city_id, event_type, source_kind
 ORDER BY event_date, city_id, event_type, source_kind;
 
--- Inspección de estructura física, sin confundirla con eventos lógicos.
-SELECT table, sum(rows) AS filas_fisicas,
-       formatReadableSize(sum(bytes_on_disk)) AS disco
+-- Physical structure inspection, not to be confused with logical events.
+SELECT table, sum(rows) AS physical_rows,
+       formatReadableSize(sum(bytes_on_disk)) AS disk
 FROM system.parts WHERE database = 'delivery_atlas' AND active
 GROUP BY table ORDER BY table;
 
--- Un único nodo no proporciona réplicas ni reparto horizontal.
+-- A single node provides no replicas and no horizontal sharding.
 SELECT version(), hostName();

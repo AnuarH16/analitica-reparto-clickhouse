@@ -13,7 +13,7 @@ from scripts.atlas import call
 
 def main():
     if call('http://127.0.0.1:8001','/api/status')['pending']:
-        raise SystemExit('Esperar a pending=0 y detener generadores antes del benchmark.')
+        raise SystemExit('Wait for pending=0 and stop generators before the benchmark.')
     ch=ClickHouse()
     queries={
       'detail':'SELECT event_date,city_id,section,event_type,source_kind,count() AS events '
@@ -30,13 +30,13 @@ def main():
             elapsed=time.monotonic()-tick
             if expected is None:
                 expected=result['data']
-            assert result['data']==expected, 'Resultados diferentes: parar comparación'
+            assert result['data']==expected, 'Different results: stop the comparison'
             runs.append({'wall_seconds':elapsed,**result['statistics']})
         output[name]={'median_wall_seconds':statistics.median(r['wall_seconds'] for r in runs),'runs':runs}
     output.update({'checked_at':datetime.now(timezone.utc).isoformat(),
                    'logical_events':sum(int(r['events']) for r in expected),'groups':len(expected),
                    'same_result':True,'version':ch.query('SELECT version() AS version')[0]['version'],
-                   'query_cache':False,'scope':'Tres consultas por alternativa en el nodo local. No compara motores ni capacidad de producción.',
+                   'query_cache':False,'scope':'Three queries per alternative on the local node. Does not compare engines or production capacity.',
                    'queries':queries})
     out=ROOT/'data/atlas';out.mkdir(parents=True,exist_ok=True)
     (out/'benchmark.json').write_text(json.dumps(output,ensure_ascii=False,indent=2)+'\n')

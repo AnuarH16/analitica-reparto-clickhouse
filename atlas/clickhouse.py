@@ -38,7 +38,7 @@ class ClickHouse:
                 time.sleep(.25*(attempt+1))
 
     def init(self):
-        for name in ('atlas.sql','atlas_operations.sql','atlas_agents.sql'):
+        for name in ('atlas.sql','atlas_operations.sql','atlas_agents.sql','atlas_miniapp.sql'):
             sql = (Path(__file__).resolve().parents[1]/'sql'/name).read_text()
             sql = '\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
             for statement in sql.split(';'):
@@ -101,6 +101,14 @@ class ClickHouse:
                 **customer_data,
                 'source_kind':'synthetic','run_id':run_id,'truncated':len(orders)==200,
                 'snapshot_at':self.query('SELECT toString(now64(3)) AS at')[0]['at']}
+
+    def order(self,run_id,order_id):
+        # A customer's tracking must not depend on the dashboard's 200-order window.
+        rows=self.query("SELECT order_id,courier_id,"
+            "status,amount_minor,currency,toString(event_time) AS event_time "
+            "FROM delivery_atlas.order_latest WHERE simulation_run_id={run:UUID} "
+            "AND order_id={order:UUID} LIMIT 1",{'param_run':run_id,'param_order':order_id})
+        return rows[0] if rows else None
 
     def customers(self,run_id):
         params={'param_run':run_id}

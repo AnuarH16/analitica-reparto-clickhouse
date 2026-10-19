@@ -360,7 +360,7 @@ Moving parts with `MOVE PARTITION` does not trigger an insert materialized view 
 
 The replay keeps the historical time and adds the ingestion time. **Entering the database during the demo does not turn it into a click from a current user.**
 
-The large source files stay outside Git and the Vercel upload. The team shares the code and instructions; obtaining a source again requires following its access and terms. The guides for each dataset are in `docs/DATOS.md`, `GLOVO.md` and `ELEME.md`.
+The large source files stay outside Git and the Vercel upload. The team shares the code and instructions; obtaining a source again requires following its access and terms. The guides for each dataset are in `docs/LEGACY-DATASETS.md`, `GLOVO.md` and `ELEME.md`.
 
 <!-- page -->
 # 11. Dashboard and API: where each piece of data comes from
@@ -427,7 +427,7 @@ Maximum 128 keys, with separate locks per endpoint so that the inventory does no
 
 The link is visible to anyone who has it. It carries fictional data, aggregates and the public catalog through Vercel/Cloudflare. ClickHouse keeps its local port; the write API is not opened through the tunnel either.
 
-The `trycloudflare.com` URL changes when another tunnel is created: `ATLAS_SHARE_ORIGIN` must be updated and redeployed. Secrets live in `data/sharing/` and in sensitive Vercel variables; allowed code in `.vercelignore`. Full procedure: `docs/COMPARTIR-VERCEL.md`. There is no availability independent of the laptop.
+The `trycloudflare.com` URL changes when another tunnel is created: `ATLAS_SHARE_ORIGIN` must be updated and redeployed. Secrets live in `data/sharing/` and in sensitive Vercel variables; allowed code in `.vercelignore`. Full procedure: `docs/SHARING-VERCEL.md`. There is no availability independent of the laptop.
 
 The current Compose uses local demo credentials; it does not implement the role separation of a production application. References: [Vercel functions](https://vercel.com/docs/functions/limitations) and [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
 
@@ -572,8 +572,8 @@ Before modifying a part, identify **what its row represents**, how its ID is gen
 ### Sources to go deeper
 
 - Executable code and DDL: `atlas/`, `sql/`, `api/`, Compose and the scripts described here.
-- Reproduction: `docs/DEMO-TRACKING.md` and `COMPARTIR-VERCEL.md`.
-- Model and audit: `docs/DATOS-Y-TRACKING.md`, `ESTRUCTURA-BD.md` and `auditoria-esquemas.json`.
+- Reproduction: `docs/TRACKING-DEMO.md` and `SHARING-VERCEL.md`.
+- Model and audit: `docs/DATA-AND-TRACKING.md`, `DATABASE-STRUCTURE.md` and `auditoria-esquemas.json`.
 - The team's initial PDF guide predates tracking; this document describes the code reviewed on 14 October.
 
 **Idea the whole team must be able to explain:** we generate/receive events, confirm them in a queue, publish their history and aggregate states to ClickHouse, and the dashboard queries what actually reached the database. The public data demonstrates volume; the simulation demonstrates our operational infrastructure.

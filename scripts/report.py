@@ -8,7 +8,7 @@ from scale import REPORT as SCALE_REPORT
 from benchmark import REPORT as QUERY_REPORT
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs" / "RESULTADOS.md"
+OUTPUT = ROOT / "docs" / "RESULTS.md"
 
 
 def fmt(value: int) -> str:

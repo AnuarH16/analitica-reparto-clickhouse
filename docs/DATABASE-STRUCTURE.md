@@ -2,9 +2,9 @@
 
 ## Evolution of 7 October
 
-The operations extension adds `demo_restaurants` and `demo_products` (fictional catalog), `courier_positions` (GPS history) and `order_events` (status history). The `courier_latest_state` and `order_latest_state` tables, their materialized views and the read views `courier_latest` / `order_latest` compute the latest state according to event time. The applied SQL is in `sql/atlas_operations.sql`; [the audit and the tracking model](DATOS-Y-TRACKING.md) explain columns, provenance and limits. Public data remains in `delivery`; the simulated operations live in `delivery_atlas`.
+The operations extension adds `demo_restaurants` and `demo_products` (fictional catalog), `courier_positions` (GPS history) and `order_events` (status history). The `courier_latest_state` and `order_latest_state` tables, their materialized views and the read views `courier_latest` / `order_latest` compute the latest state according to event time. The applied SQL is in `sql/atlas_operations.sql`; [the audit and the tracking model](DATA-AND-TRACKING.md) explain columns, provenance and limits. Public data remains in `delivery`; the simulated operations live in `delivery_atlas`.
 
-The v1 infrastructure already applies `sql/atlas.sql` in the separate `delivery_atlas` database. It uses `app_events` with `ReplacingMergeTree`, `app_daily_rollup` with `uniqExact` states and a read view `app_daily_counts`. The API's persistent queue makes it possible to recover pending publishes and recognize retries with immutable content. See [the applied infrastructure](INFRAESTRUCTURA-ATLAS.md).
+The v1 infrastructure already applies `sql/atlas.sql` in the separate `delivery_atlas` database. It uses `app_events` with `ReplacingMergeTree`, `app_daily_rollup` with `uniqExact` states and a read view `app_daily_counts`. The API's persistent queue makes it possible to recover pending publishes and recognize retries with immutable content. See [the applied infrastructure](ATLAS-INFRASTRUCTURE.md).
 
 The `delivery_proposal` design described below is kept as the initial proposal of 5 October. It is not the schema used by the new API. In v1, the simple counter aggregate has been replaced by sets of IDs to avoid double counting on resends.
 
@@ -101,7 +101,7 @@ Next delivery: manual path, validated contract, retry test, batch publishing and
 ## References
 
 - Project code: `sql/schema.sql`, `sql/eleme.sql`, `dashboard.py` and scripts.
-- Measurements: [RESULTADOS.md](RESULTADOS.md), [ELEME.md](ELEME.md) and reports in `data/`.
+- Measurements: [RESULTS.md](RESULTS.md), [ELEME.md](ELEME.md) and reports in `data/`.
 - [MergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/mergetree).
 - [SummingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/summingmergetree).
 - [Incremental materialized views](https://clickhouse.com/docs/concepts/features/materialized-views/incremental-materialized-view).

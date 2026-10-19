@@ -66,6 +66,6 @@ The guide, page 5, asks us to justify and cite AI assistance and to verify its r
 - [Concepts](../recursos/01_2_Concepts.md).
 - [Docker](../recursos/01_3_Docker.md) and [examples](../recursos/01_3_docker/INSTRUCTIONS.md).
 - [Cross-cutting concerns](../recursos/01_4_Cross_cutting_concerns.md).
-- [Current and proposed structure](ESTRUCTURA-BD.md), [results](RESULTADOS.md) and the repository code.
+- [Current and proposed structure](DATABASE-STRUCTURE.md), [results](RESULTS.md) and the repository code.
 - [Replication in ClickHouse](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/replication).
 - [ClickHouse analytical architecture](https://clickhouse.com/docs/get-started/about/why-clickhouse-is-so-fast).

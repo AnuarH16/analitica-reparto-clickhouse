@@ -2,11 +2,11 @@
 
 ## Direction for the next demo
 
-The [fictional food-delivery platform](PLATAFORMA-FICTICIA.md) would make it possible to show: a user's path → events and simulated load → dashboard → comparison of queries over the same dataset. That integrated path **is not implemented yet**. The sequence below is the demo that can be run now with the current tables; the OTTO timings are not attributed to the platform's future generator.
+The [fictional food-delivery platform](FICTIONAL-PLATFORM.md) would make it possible to show: a user's path → events and simulated load → dashboard → comparison of queries over the same dataset. That integrated path **is not implemented yet**. The sequence below is the demo that can be run now with the current tables; the OTTO timings are not attributed to the platform's future generator.
 
 ## Before going into class
 
-Complete the loads by following [INSTALACION.md](INSTALACION.md). Have open the [OTTO dashboard](http://127.0.0.1:8000/), the [REES46 dashboard](http://127.0.0.1:8000/rees46.html), the [scale dashboard](http://127.0.0.1:8000/scale.html), the [slides](http://127.0.0.1:8000/otto-presentacion.html) and two terminals. Save `data/query-benchmark.json` after running `python3 scripts/benchmark.py` and run `python3 scripts/check.py` to verify the whole set. Do not download or load tens of GB during the talk.
+Complete the loads by following [INSTALLATION.md](INSTALLATION.md). Have open the [OTTO dashboard](http://127.0.0.1:8000/), the [REES46 dashboard](http://127.0.0.1:8000/rees46.html), the [scale dashboard](http://127.0.0.1:8000/scale.html), the [slides](http://127.0.0.1:8000/otto-presentacion.html) and two terminals. Save `data/query-benchmark.json` after running `python3 scripts/benchmark.py` and run `python3 scripts/check.py` to verify the whole set. Do not download or load tens of GB during the talk.
 
 SQL client:
 
@@ -63,7 +63,7 @@ SELECT event_date AS day, event_type, sum(events) AS events
 FROM otto_daily_rollup GROUP BY day, event_type ORDER BY day, event_type;
 ```
 
-To avoid spending time printing 87 lines twice, `python3 scripts/benchmark.py` can be run before class and [RESULTADOS.md](RESULTADOS.md) or the [scale dashboard](http://127.0.0.1:8000/scale.html) opened during the demo. Show the measured `rows_read` and `bytes_read` and that the script compared the answers. The aggregate has 87 day/type keys, although `SummingMergeTree` may keep several physical rows per key before merging them.
+To avoid spending time printing 87 lines twice, `python3 scripts/benchmark.py` can be run before class and [RESULTS.md](RESULTS.md) or the [scale dashboard](http://127.0.0.1:8000/scale.html) opened during the demo. Show the measured `rows_read` and `bytes_read` and that the script compared the answers. The aggregate has 87 day/type keys, although `SummingMergeTree` may keep several physical rows per key before merging them.
 
 **7:00–8:00 — A billion rows with clear provenance.**
 

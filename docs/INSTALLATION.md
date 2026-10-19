@@ -1,6 +1,6 @@
 # Reproducible installation
 
-To develop the fictional platform without downloading the historical datasets, follow [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md). The instructions below are for the large-dataset lab.
+To develop the fictional platform without downloading the historical datasets, follow [ATLAS-INFRASTRUCTURE.md](ATLAS-INFRASTRUCTURE.md). The instructions below are for the large-dataset lab.
 
 ## Requirements
 
@@ -51,7 +51,7 @@ python3 scripts/check.py
 python3 scripts/report.py
 ```
 
-`scale.py` requires the full OTTO dataset and generates five labelled scenarios of **216,716,096 rows each** with `INSERT SELECT`. Its table is synthetic and kept separate. `benchmark.py` compares archive and aggregate, verifies that the result is identical and saves `data/query-benchmark.json` with time, rows read and bytes read. `check.py` audits the counts; `report.py` writes [RESULTADOS.md](RESULTADOS.md) from the manifests and the measurements. Run them **after** the loads finish so the measurements do not compete with them.
+`scale.py` requires the full OTTO dataset and generates five labelled scenarios of **216,716,096 rows each** with `INSERT SELECT`. Its table is synthetic and kept separate. `benchmark.py` compares archive and aggregate, verifies that the result is identical and saves `data/query-benchmark.json` with time, rows read and bytes read. `check.py` audits the counts; `report.py` writes [RESULTS.md](RESULTS.md) from the manifests and the measurements. Run them **after** the loads finish so the measurements do not compete with them.
 
 ## 5. Dashboard and demo
 

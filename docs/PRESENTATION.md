@@ -1,14 +1,14 @@
 # Presentation: 20 minutes + 10-minute demo
 
-**Current 5-minute progress update:** [AVANCE-PRESENTACION.md](AVANCE-PRESENTACION.md). This document keeps the earlier script for the final talk and needs to be adapted to the new Delivery Atlas scope.
+**Current 5-minute progress update:** [PROGRESS-UPDATE.md](PROGRESS-UPDATE.md). This document keeps the earlier script for the final talk and needs to be adapted to the new Delivery Atlas scope.
 
 **Title:** Clickstream Lab: analytics over hundreds of millions of real events and a billion-row test with ClickHouse.
 
 **Thesis:** ClickHouse makes it possible to query and visualize large event tables; physical design, incremental aggregation and data provenance can be measured and explained.
 
-**New framing for the next version:** present a fictional food-delivery platform and design its analytics infrastructure for massive event volumes, with simulated browsing and traffic, and adapters for future real data. The design is in [PLATAFORMA-FICTICIA.md](PLATAFORMA-FICTICIA.md). The current slides show the implementation from before that integration: update the walkthrough once it is implemented and measured. The existing benchmarks are still from OTTO/REES46/Ele.me, not from the fictional platform.
+**New framing for the next version:** present a fictional food-delivery platform and design its analytics infrastructure for massive event volumes, with simulated browsing and traffic, and adapters for future real data. The design is in [FICTIONAL-PLATFORM.md](FICTIONAL-PLATFORM.md). The current slides show the implementation from before that integration: update the walkthrough once it is implemented and measured. The existing benchmarks are still from OTTO/REES46/Ele.me, not from the fictional platform.
 
-Results verified on this machine: **628,425,832 real events** from two sources, **1,083,580,480 derived rows** and a comparison of **5.89 s vs 0.21 s** for the same daily question. See [RESULTADOS.md](RESULTADOS.md) for conditions and limits.
+Results verified on this machine: **628,425,832 real events** from two sources, **1,083,580,480 derived rows** and a comparison of **5.89 s vs 0.21 s** for the same daily question. See [RESULTS.md](RESULTS.md) for conditions and limits.
 
 [Navigable slides](http://127.0.0.1:8000/otto-presentacion.html) (arrow keys and `F` for full screen). [Reproducible demo](DEMO.md).
 

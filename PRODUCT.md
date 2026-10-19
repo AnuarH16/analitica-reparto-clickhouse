@@ -28,7 +28,7 @@ Name: Delivery Atlas. Documentation and interface in English, because the course
 
 ## Evidence on Hand
 
-docs/auditoria-esquemas.json contains the inspected tables and columns. docs/RESULTADOS-ATLAS.md records one million simulated events and retry/recovery tests. The OTTO measurements are not attributed to Atlas. Glovo provides a catalog; Ele.me, samples; Meituan, historical orders and sequences. None of those sources contains our GPS fleet.
+docs/auditoria-esquemas.json contains the inspected tables and columns. docs/ATLAS-RESULTS.md records one million simulated events and retry/recovery tests. The OTTO measurements are not attributed to Atlas. Glovo provides a catalog; Ele.me, samples; Meituan, historical orders and sequences. None of those sources contains our GPS fleet.
 
 ## Product Principles
 
@@ -39,7 +39,7 @@ docs/auditoria-esquemas.json contains the inspected tables and columns. docs/RES
 
 ## Customer Agent Extension — 14 October 2026
 
-Fictional customers use Qwen3:0.6b on local Ollama to choose catalog actions. Python validates options and budgets; a purchase links customer_id, session_id, checkout_event_id and order_id with the basket, statuses and GPS. The dashboard reads the decisions and purchases published to ClickHouse. The local policy and the previous fleet have different labels. Evidence: docs/evidencia-clientes.json and docs/AGENTES-CLIENTES.md.
+Fictional customers use Qwen3:0.6b on local Ollama to choose catalog actions. Python validates options and budgets; a purchase links customer_id, session_id, checkout_event_id and order_id with the basket, statuses and GPS. The dashboard reads the decisions and purchases published to ClickHouse. The local policy and the previous fleet have different labels. Evidence: docs/evidencia-clientes.json and docs/AI-CUSTOMERS.md.
 
 ## Concurrent traffic extension
 

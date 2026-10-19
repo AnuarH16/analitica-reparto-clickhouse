@@ -1,6 +1,6 @@
 # Fictional food-delivery platform: scope and design
 
-Status as of 7 October: **v1 infrastructure implemented; mini-app and dedicated dashboard pending**. [API, contract and applied SQL](INFRAESTRUCTURA-ATLAS.md), [team responsibilities](PLAN-EQUIPO.md). The document below keeps the initial design from 5 October as a scope reference; the items pending at that date are checked against the v1 guide.
+Status as of 7 October: **v1 infrastructure implemented; mini-app and dedicated dashboard pending**. [API, contract and applied SQL](ATLAS-INFRASTRUCTURE.md), [team responsibilities](TEAM-PLAN.md). The document below keeps the initial design from 5 October as a scope reference; the items pending at that date are checked against the v1 guide.
 
 ## Goal
 

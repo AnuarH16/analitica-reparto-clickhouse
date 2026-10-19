@@ -2,7 +2,7 @@
 
 Date: 7 October 2026. Team: Jere, Anuar and Echenique.
 
-**Later change of scope:** Jere decided to continue with Rayo for now and split the work when the teammates join. The split below is a proposal for that moment, not work we are waiting on. The operations dashboard and synthetic Madrid tracking are already being implemented. Current status: [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md). The earlier PDF guide describes the first infrastructure delivery.
+**Later change of scope:** Jere decided to continue with Rayo for now and split the work when the teammates join. The split below is a proposal for that moment, not work we are waiting on. The operations dashboard and synthetic Madrid tracking are already being implemented. Current status: [DATA-AND-TRACKING.md](DATA-AND-TRACKING.md). The earlier PDF guide describes the first infrastructure delivery.
 
 ## What we are building
 
@@ -26,7 +26,7 @@ There is already a lab with OTTO, REES46, Ele.me and the Glovo catalog, with its
 4. Create `scripts/atlas.py` to generate a reproducible load and `scripts/check_atlas.py` to verify the full path.
 5. Save our own measurements of the new database. The old benchmarks do not describe its performance.
 
-**Database implemented and verified on 7 October.** Events are validated, incorrect data is rejected, the same ID with different content returns a conflict and a retry keeps the logical count. One million synthetic events were loaded and verified, and queue recovery after restarting services was tested. [Results and conditions](RESULTADOS-ATLAS.md).
+**Database implemented and verified on 7 October.** Events are validated, incorrect data is rejected, the same ID with different content returns a conflict and a retry keeps the logical count. One million synthetic events were loaded and verified, and queue recovery after restarting services was tested. [Results and conditions](ATLAS-RESULTS.md).
 
 Jere's next tasks: support the two interfaces, measure delay and disk usage, improve the generator with abandonment, and optimize the exact aggregate (it does not yet beat the detail table in the local measurement). Then document backup/restore and consider a second node as an extension.
 
@@ -44,7 +44,7 @@ Done when: Echenique goes through a path and can find his actions and his sessio
 
 ## Echenique: dashboard and reproduction
 
-Work on `web/atlas-dashboard.html`, `web/atlas-dashboard.js`, `web/atlas-dashboard.css`, `docs/DEMO-ATLAS.md` and `docs/PRUEBAS-EQUIPO.md` (new files).
+Work on `web/atlas-dashboard.html`, `web/atlas-dashboard.js`, `web/atlas-dashboard.css`, `docs/DEMO-ATLAS.md` and `docs/TEAM-INSTALL-TESTS.md` (new files).
 
 1. Query `GET /api/summary`, `GET /api/recent` and `GET /api/status`.
 2. Show events by day, city and action; distinguish `synthetic` from `demo_live`.

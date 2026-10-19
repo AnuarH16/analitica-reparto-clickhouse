@@ -37,7 +37,7 @@ PAGES = [
         ('h', 'Cómo lo presentamos con rigor'),
         ('body', 'Separar fuentes y mostrar su etiqueta de origen. La reproducción de un archivo antiguo inserta datos ahora, pero no cambia la fecha original del evento. El laboratorio tiene además 1.083.580.480 filas derivadas de OTTO para estrés: no son clics nuevos.'),
         ('body', '**No mezclamos todos los números como si describieran una población.** El millón Atlas está verificado por su identificador de ejecución. Las filas de comprobación añadidas después se contabilizan aparte.'),
-        ('small', 'Recuentos históricos comprobados de nuevo el 7/10/2026. Fuentes y significado: README.md; resultados propios: docs/RESULTADOS-ATLAS.md.'),
+        ('small', 'Recuentos históricos comprobados de nuevo el 7/10/2026. Fuentes y significado: README.md; resultados propios: docs/ATLAS-RESULTS.md.'),
     ]),
     ('Cómo viaja un evento', [
         ('lead', '**Una acción se recibe, se conserva en cola y después se publica en ClickHouse. El dashboard consulta ClickHouse a través de la API.**'),
@@ -72,7 +72,7 @@ PAGES = [
         ('h', 'Pasos, en este orden'),
         ('body', '1. Permitir elegir ciudad y buscar. Después abrir restaurante, abrir producto, añadir al carrito y confirmar un pedido simulado.'),
         ('body', '2. Al comenzar, crear **session_id** con crypto.randomUUID(). Cada acción crea su propio **event_id** y su fecha con new Date().toISOString().'),
-        ('body', '3. Enviar un objeto {"events": [...]} a **POST /api/events**. Usar source=delivery-miniapp y source_kind=demo_live. Ejemplo completo de campos: docs/INFRAESTRUCTURA-ATLAS.md.'),
+        ('body', '3. Enviar un objeto {"events": [...]} a **POST /api/events**. Usar source=delivery-miniapp y source_kind=demo_live. Ejemplo completo de campos: docs/ATLAS-INFRASTRUCTURE.md.'),
         ('body', '4. Acciones básicas: search, restaurant_opened, product_opened, cart_added y order_submitted. Abrir restaurante requiere restaurant_id; producto y carrito requieren además product_id. Añadir ciudad y sección siempre.'),
         ('body', '5. Guardar el objeto antes de enviarlo. Si la red falla, reenviar **el mismo ID, fecha y contenido**, sin generar otro evento. Coordinar la espera y los errores con Jere.'),
         ('h', 'Qué significa la respuesta'),
@@ -83,7 +83,7 @@ PAGES = [
     ('Echenique: dashboard y reproducción', [
         ('lead', '**Tu parte: enseñar los datos que realmente guarda ClickHouse y comprobar que otra persona puede repetir la demo.**'),
         ('h', 'Archivos que creas'),
-        ('body', '**web/atlas-dashboard.html**, **web/atlas-dashboard.js**, **web/atlas-dashboard.css**, **docs/DEMO-ATLAS.md** y **docs/PRUEBAS-EQUIPO.md**.'),
+        ('body', '**web/atlas-dashboard.html**, **web/atlas-dashboard.js**, **web/atlas-dashboard.css**, **docs/DEMO-ATLAS.md** y **docs/TEAM-INSTALL-TESTS.md**.'),
         ('h', 'Pasos, en este orden'),
         ('body', '1. **GET /api/summary:** mostrar eventos por día, ciudad y acción. Ofrecer filtros from, to, city_id, source_kind y event_type. Respetar truncated si faltan grupos en la respuesta.'),
         ('body', '2. **GET /api/recent:** mostrar los últimos 30 eventos globales con ID, sesión y horas. Este endpoint no filtra por ciudad; etiquetar el listado como global.'),
@@ -121,7 +121,7 @@ PAGES = [
         ('body', '**Primero:** Anuar y Echenique construyen sus pantallas con el contrato disponible. **Después:** Echenique prueba el recorrido; Jere revisa IDs, recuentos y retraso. **Finalmente:** ejecutar en otro ordenador, registrar condiciones y ensayar juntos.'),
         ('h', 'Reparto de la exposición final'),
         ('body', 'Propuesta de 30 minutos: Jere, 8 min de ClickHouse e infraestructura; Anuar, 5 min de miniapp y evento; Echenique, 5 min de dashboard y reproducción; Jere, 2 min de pruebas y límites; 10 min para discusión y preguntas. Confirmar el formato de 20 + 10 con el profesor.'),
-        ('small', 'Guía técnica: docs/INFRAESTRUCTURA-ATLAS.md. Reparto editable: docs/PLAN-EQUIPO.md. Evidencia: docs/RESULTADOS-ATLAS.md y docs/evidencia-atlas.json. Referencias oficiales de motores enlazadas en la guía técnica.'),
+        ('small', 'Guía técnica: docs/ATLAS-INFRASTRUCTURE.md. Reparto editable: docs/TEAM-PLAN.md. Evidencia: docs/ATLAS-RESULTS.md y docs/evidencia-atlas.json. Referencias oficiales de motores enlazadas en la guía técnica.'),
     ]),
 ]
 

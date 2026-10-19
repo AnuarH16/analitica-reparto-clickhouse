@@ -29,7 +29,7 @@ The `python3 scripts/crud_demo.py` script already demonstrates insert, query, up
 
 ## Load and evidence
 
-- One million browsing events from the first generator: `docs/RESULTADOS-ATLAS.md`.
+- One million browsing events from the first generator: `docs/ATLAS-RESULTS.md`.
 - 100000 synthetic historical positions and 5965 statuses, verified: `docs/evidencia-carga-gps.json`.
 - Nine unit tests and an HTTP/SQL telemetry test. The HTTP test uses its own run; it does not change the run the dashboard shows.
 - The configured pace is two seconds, subject to the cost of receiving/publishing. The dashboard shows data age and errors; data can fall behind under load. No SLA has been set.

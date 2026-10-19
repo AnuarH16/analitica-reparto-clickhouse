@@ -1,6 +1,6 @@
 # Delivery Atlas v1 infrastructure
 
-**Extension in this version:** the v1 browsing contract is kept, and orders/GPS are added in `sql/atlas_operations.sql`, together with a demo catalog and the tracking dashboard. The root of port 8001 now serves that dashboard. Current documentation of the new routes, fields and provenance: [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md). The commercial mini-app is documented in [MINIAPP.md](MINIAPP.md).
+**Extension in this version:** the v1 browsing contract is kept, and orders/GPS are added in `sql/atlas_operations.sql`, together with a demo catalog and the tracking dashboard. The root of port 8001 now serves that dashboard. Current documentation of the new routes, fields and provenance: [DATA-AND-TRACKING.md](DATA-AND-TRACKING.md). The commercial mini-app is documented in [MINIAPP.md](MINIAPP.md).
 
 Date: 7 October 2026. Implementation: `compose.yaml`, `Dockerfile.atlas`, `atlas/` and `sql/atlas.sql`. The earlier lab keeps its `delivery` database. The earlier `delivery_proposal` proposal is not the database applied by this version.
 
@@ -36,7 +36,7 @@ SQLite is a small transport and retry log, not the store the dashboard queries. 
 
 Requirements: Docker/Compose and Python 3.10 or later for the test and generation commands. The scripts use the standard library. The API uses Python 3.12 in Docker and ClickHouse 25.8. The `demo` values are credentials for the local lab.
 
-**On Windows:** use `python` instead of `python3`. The recorded test and common problems are in [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md).
+**On Windows:** use `python` instead of `python3`. The recorded test and common problems are in [TEAM-INSTALL-TESTS.md](TEAM-INSTALL-TESTS.md).
 
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
@@ -154,7 +154,7 @@ It saves the seed, start date, run ID, parameters, payload fingerprint and send 
 
 Anuar's complete mini-app; Echenique's dedicated dashboard; an independent test on another computer; fitting the existing CRUD into the demo; a load with more realistic abandonment/schedules; measuring delay up to the dashboard and latencies under concurrent load; documented backup and restore; a rehearsal of the 30 minutes.
 
-**Verified on 7 October:** one million synthetic events accepted and verified in ClickHouse, retries, ID conflict, equality between detail and aggregate, and recovery of a pending entry after orderly shutdowns. The new aggregate was not faster in the local benchmark (0.703 s vs 0.498 s); studying its cost is a pending task. See [results and conditions](RESULTADOS-ATLAS.md) and [exported evidence](evidencia-atlas.json).
+**Verified on 7 October:** one million synthetic events accepted and verified in ClickHouse, retries, ID conflict, equality between detail and aggregate, and recovery of a pending entry after orderly shutdowns. The new aggregate was not faster in the local benchmark (0.703 s vs 0.498 s); studying its cost is a pending task. See [results and conditions](ATLAS-RESULTS.md) and [exported evidence](evidencia-atlas.json).
 
 `python3 scripts/recover_atlas.py` reproduces the recovery test and briefly stops local services; run it with no other jobs active. `python3 scripts/crud_demo.py` demonstrates operations on `delivery.demo_events`, a separate scratch table. Atlas events are immutable and their incremental views do not automatically recompute a modified history.
 
@@ -165,4 +165,4 @@ The local log and the exact aggregates have costs that will need measuring at la
 - [ReplacingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/replacingmergetree).
 - [AggregatingMergeTree](https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree).
 - [Retries and deduplication limits](https://clickhouse.com/docs/concepts/features/operations/insert/deduplicating-inserts-on-retries). The current documentation includes changes after 25.8; this version does not depend on those newer settings.
-- Repository code and tests; [applied theory and pending tasks](REVISION-TEORIA.md).
+- Repository code and tests; [applied theory and pending tasks](THEORY-REVIEW.md).

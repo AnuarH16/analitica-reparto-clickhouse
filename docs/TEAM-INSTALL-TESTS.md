@@ -1,8 +1,8 @@
 # Team installation tests
 
-Log of Delivery Atlas installations on computers other than the development one, as requested in [PLAN-EQUIPO.md](PLAN-EQUIPO.md). Each test records system, versions, commands and results. Anyone who repeats the test on another computer can add it at the end using the same format.
+Log of Delivery Atlas installations on computers other than the development one, as requested in [TEAM-PLAN.md](TEAM-PLAN.md). Each test records system, versions, commands and results. Anyone who repeats the test on another computer can add it at the end using the same format.
 
-The path tested is Atlas without the large datasets: [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md), section 2.
+The path tested is Atlas without the large datasets: [ATLAS-INFRASTRUCTURE.md](ATLAS-INFRASTRUCTURE.md), section 2.
 
 ## Anuar: Windows 11, 19 October 2026
 

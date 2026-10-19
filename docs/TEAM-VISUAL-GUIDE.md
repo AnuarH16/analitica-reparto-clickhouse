@@ -84,4 +84,4 @@ flowchart LR
 
 ClickHouse and the simulator stay on Jere's computer. The start/stop controls are in the local demo.
 
-**Full guide:** `docs/DOCUMENTO-TECNICO-EQUIPO.md` and its 17-page PDF. Detailed installation: `docs/DEMO-TRACKING.md`. Sharing: `docs/COMPARTIR-VERCEL.md`.
+**Full guide:** `docs/TEAM-TECHNICAL-GUIDE.md` and its 17-page PDF. Detailed installation: `docs/TRACKING-DEMO.md`. Sharing: `docs/SHARING-VERCEL.md`.

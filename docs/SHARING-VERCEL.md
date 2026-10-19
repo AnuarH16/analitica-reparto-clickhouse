@@ -23,7 +23,7 @@ There is a cache in the gateway: 1.5 s for tracking/status, 10 s for browsing an
 
 ## Prepare and start
 
-1. Start Atlas by following [DEMO-TRACKING.md](DEMO-TRACKING.md). Start the fleet from http://127.0.0.1:8001/.
+1. Start Atlas by following [TRACKING-DEMO.md](TRACKING-DEMO.md). Start the fleet from http://127.0.0.1:8001/.
 2. Create a token and the local files without printing it:
 
 ```bash

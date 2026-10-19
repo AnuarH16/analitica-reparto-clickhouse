@@ -1,16 +1,16 @@
-> **Extension of 14 Oct:** the local AI customer agent now exists, with the checkout → purchase → statuses → GPS link. [Guide to the extension](AGENTES-CLIENTES.md). The manual mini-app and other pending points from this earlier review remain separate.
+> **Extension of 14 Oct:** the local AI customer agent now exists, with the checkout → purchase → statuses → GPS link. [Guide to the extension](AI-CUSTOMERS.md). The manual mini-app and other pending points from this earlier review remain separate.
 
 # Project status for the team
 
 ## Update of 7 October 2026
 
-**Later extension on the same day:** Jere asked to continue with Rayo until the team joins. Synthetic Madrid tracking, position/status tables, a demo catalog and an operations dashboard on port 8001 were added. See [DATOS-Y-TRACKING.md](DATOS-Y-TRACKING.md): it is the current status. The work split and PDF described below are the earlier proposal, not tasks we are waiting on.
+**Later extension on the same day:** Jere asked to continue with Rayo until the team joins. Synthetic Madrid tracking, position/status tables, a demo catalog and an operations dashboard on port 8001 were added. See [DATA-AND-TRACKING.md](DATA-AND-TRACKING.md): it is the current status. The work split and PDF described below are the earlier proposal, not tasks we are waiting on.
 
-The v1 infrastructure has been implemented in `delivery_atlas`: SQL, contract, Python API in Docker, persistent SQLite queue, publisher and generator. The delivery mini-app and the dedicated dashboard are still pending. The split is **Jere: database and ingestion; Anuar: mini-app; Echenique: dashboard and reproduction**. Read [PLAN-EQUIPO.md](PLAN-EQUIPO.md) and [INFRAESTRUCTURA-ATLAS.md](INFRAESTRUCTURA-ATLAS.md).
+The v1 infrastructure has been implemented in `delivery_atlas`: SQL, contract, Python API in Docker, persistent SQLite queue, publisher and generator. The delivery mini-app and the dedicated dashboard are still pending. The split is **Jere: database and ingestion; Anuar: mini-app; Echenique: dashboard and reproduction**. Read [TEAM-PLAN.md](TEAM-PLAN.md) and [ATLAS-INFRASTRUCTURE.md](ATLAS-INFRASTRUCTURE.md).
 
 The applied SQL is `sql/atlas.sql`, with `ReplacingMergeTree` for the detail and ID sets in `AggregatingMergeTree` for the logical counts. The queue accepts retries with the same ID and content; a change of content returns a conflict. The API is on port 8001. The historical lab keeps its database and dashboards.
 
-**Guide for the three of us:** [team PDF](../output/pdf/Delivery-Atlas-Guia-Equipo.pdf). One million synthetic events, retries and recovery after orderly shutdowns were verified. Detail and aggregate match, but the aggregate was not faster in the new test. [Results and conditions](RESULTADOS-ATLAS.md).
+**Guide for the three of us:** [team PDF](../output/pdf/Delivery-Atlas-Guia-Equipo.pdf). One million synthetic events, retries and recovery after orderly shutdowns were verified. Detail and aggregate match, but the aggregate was not faster in the new test. [Results and conditions](ATLAS-RESULTS.md).
 
 The following sections are the snapshot of 5 October, before this implementation. Their figures describe the historical sources and are not reused as benchmarks of the new database.
 
@@ -42,25 +42,25 @@ OTTO and REES46 add up to 628,425,832 real events from different populations. Th
 - Count of Ele.me positive labels: median of 0.0581 s for 2,170,299 rows, three local runs.
 - Reading the full Ele.me JSON exhausted the local total memory limit of 3.50 GiB. No timing comparison between JSON and a typed column was completed.
 
-These results do not compare ClickHouse with PostgreSQL nor establish performance on another machine. The original reports are in `data/*benchmark.json`; [RESULTADOS.md](RESULTADOS.md) and [ELEME.md](ELEME.md) explain conditions and limits.
+These results do not compare ClickHouse with PostgreSQL nor establish performance on another machine. The original reports are in `data/*benchmark.json`; [RESULTS.md](RESULTS.md) and [ELEME.md](ELEME.md) explain conditions and limits.
 
 ## What GitHub contains
 
 Code, SQL, Docker configuration, dashboards, documentation, result screenshots and small measurement reports. The ZIP/CSV files and the Docker volume are **not uploaded**: cloning the repository does not download the millions of rows. The instructions link to the sources and allow the data to be loaded. Ele.me requires a Tianchi account and reviewing its terms; the file is not redistributed.
 
-For this version use `compose.yaml` and [INSTALACION.md](INSTALACION.md). Files from the earlier Flask/Grafana version of the repository are kept; their instructions, ports and metrics do not describe this implementation. The old presentations and dashboards from the first approaches are working material, not the final script.
+For this version use `compose.yaml` and [INSTALLATION.md](INSTALLATION.md). Files from the earlier Flask/Grafana version of the repository are kept; their instructions, ports and metrics do not describe this implementation. The old presentations and dashboards from the first approaches are working material, not the final script.
 
 ## Fit with the assignment
 
-There are real datasets, a dashboard, Python integration, CRUD, a columnar model and measurements. The guides cover installation, architecture, consistency, scaling and critical reflection. One node has been run: replication and sharding across nodes are explained, not demonstrated. The professor confirmed ClickHouse as the group's technology (19 October 2026). It uses SQL and should be presented as a columnar analytical engine. Requirements and the status of each one: [ENUNCIADO.md](ENUNCIADO.md).
+There are real datasets, a dashboard, Python integration, CRUD, a columnar model and measurements. The guides cover installation, architecture, consistency, scaling and critical reflection. One node has been run: replication and sharding across nodes are explained, not demonstrated. The professor confirmed ClickHouse as the group's technology (19 October 2026). It uses SQL and should be presented as a columnar analytical engine. Requirements and the status of each one: [ASSIGNMENT.md](ASSIGNMENT.md).
 
 ## Project direction and pending decisions
 
 **Delivery Atlas: analytics infrastructure for a fictional food-delivery platform.**
 
-**New direction suggested by the professor and adopted by the group:** define a fictional food-delivery platform, with an analytics infrastructure for its events. The browsing path and a massive load can be simulated and must be labelled as such. An event contract and adapters would allow future real data to be added without changing every query and dashboard. See [PLATAFORMA-FICTICIA.md](PLATAFORMA-FICTICIA.md).
+**New direction suggested by the professor and adopted by the group:** define a fictional food-delivery platform, with an analytics infrastructure for its events. The browsing path and a massive load can be simulated and must be labelled as such. An event contract and adapters would allow future real data to be added without changing every query and dashboard. See [FICTIONAL-PLATFORM.md](FICTIONAL-PLATFORM.md).
 
-The [database map](ESTRUCTURA-BD.md) explains the current lab and the proposed model. The [progress presentation and its notes](AVANCE-PRESENTACION.md) are in English, last 5 minutes and prioritize structure and status. The [theory review](REVISION-TEORIA.md) identifies idempotency, ingestion metrics and full reproduction of the environment as the next adjustments.
+The [database map](DATABASE-STRUCTURE.md) explains the current lab and the proposed model. The [progress presentation and its notes](PROGRESS-UPDATE.md) are in English, last 5 minutes and prioritize structure and status. The [theory review](THEORY-REVIEW.md) identifies idempotency, ingestion metrics and full reproduction of the environment as the next adjustments.
 
 The complete platform and the common contract are not implemented yet. The current infrastructure and datasets are the working base: OTTO demonstrates scale and ingestion; Ele.me provides real recommendations from the industry; REES46 extends the time dimensions; Glovo provides a Spanish catalog; the derived table serves as an optional stress test. Their results do not yet establish the performance of the future fictional platform.
 

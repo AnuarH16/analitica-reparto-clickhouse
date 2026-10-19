@@ -36,6 +36,8 @@ SQLite es un pequeño registro de transporte y reintentos, no el almacén que co
 
 Requisitos: Docker/Compose y Python 3.10 o posterior para los comandos de pruebas y generación. Los scripts usan la biblioteca estándar. La API usa Python 3.12 en Docker y ClickHouse 25.8. Los valores `demo` son credenciales del laboratorio local.
 
+**En Windows:** usar `python` en lugar de `python3`. La prueba registrada y los problemas frecuentes están en [PRUEBAS-EQUIPO.md](PRUEBAS-EQUIPO.md).
+
 ```bash
 docker compose -f compose.yaml --profile atlas up -d --build --wait
 docker compose -f compose.yaml --profile atlas ps

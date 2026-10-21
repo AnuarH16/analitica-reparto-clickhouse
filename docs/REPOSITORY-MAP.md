@@ -230,6 +230,7 @@ Run with `python3 -m unittest discover -s tests -v` and `node --test tests/test_
 | `chuleta-bilingue.json` | Content source of the bilingual cheat sheet PDF |
 | `capturas/` (9 images) | Screenshots of the dashboard, the mini-app, mobile views and the public website |
 | `*-preview.png` (4 images) | Previews of the lab dashboards |
+| `atlas-data-flow.svg` | Slide-ready diagram (16:9) of how the three kinds of data reach ClickHouse and the dashboard |
 
 ## Other folders
 

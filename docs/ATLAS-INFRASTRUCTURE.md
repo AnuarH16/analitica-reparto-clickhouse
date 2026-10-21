@@ -6,6 +6,8 @@ Date: 7 October 2026. Implementation: `compose.yaml`, `Dockerfile.atlas`, `atlas
 
 ## 1. Short explanation for the team
 
+![How the three kinds of data reach ClickHouse and the dashboard](atlas-data-flow.svg)
+
 Anuar builds a small fictional app. Each action creates an event with an ID. Python checks the event and records it in a persistent queue. A publisher collects batches and inserts them into ClickHouse. ClickHouse stores the details and prepares daily counts. Echenique's dashboard queries those counts through Python.
 
 ```text

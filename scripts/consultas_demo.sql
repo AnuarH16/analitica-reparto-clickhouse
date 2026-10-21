@@ -2,7 +2,7 @@
 -- Abrir un cliente:  docker compose exec clickhouse clickhouse client --user admin --password
 -- (pide la contraseña; así no queda en el historial)
 
--- 1. Volumen real de promociones: Criteo (provisional hasta tener MT-LIFT, ver docs/DATOS.md)
+-- 1. Volumen real de promociones: Criteo (provisional hasta tener MT-LIFT, ver docs/LEGACY-DATASETS.md)
 --    Esperado: 13.979.592 filas
 SELECT count() FROM reparto.criteo_uplift;
 

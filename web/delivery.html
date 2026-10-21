@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delivery Atlas · Order food</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/delivery.css">
+<script src="/delivery.js" defer></script>
+</head>
+<body>
+<div class="layout">
+  <div class="app" id="app">
+    <header class="top">
+      <button class="back" id="back" type="button" hidden aria-label="Back">‹</button>
+      <a class="brand" href="/delivery.html">Delivery Atlas</a>
+      <label class="city">Deliver to
+        <select id="city" aria-label="City"></select>
+      </label>
+    </header>
+
+    <div id="notice" class="notice" role="alert" hidden></div>
+
+    <!-- Home: search, filters and restaurants -->
+    <main id="view-home" class="view">
+      <h1>What do you feel like eating?</h1>
+      <form id="search-form" class="search" role="search">
+        <input id="search" type="search" placeholder="Search for a restaurant or a dish" autocomplete="off" aria-label="Search">
+        <button type="submit">Search</button>
+      </form>
+      <div class="filters" role="group" aria-label="Filters">
+        <button type="button" class="chip" data-filter="cheap" aria-pressed="false">Dishes up to €10</button>
+        <button type="button" class="chip" data-filter="near" aria-pressed="false">Closest to Puerta del Sol</button>
+      </div>
+      <p id="result-note" class="note"></p>
+      <ul id="restaurants" class="restaurants" aria-live="polite"><li class="empty">Loading restaurants…</li></ul>
+    </main>
+
+    <!-- Restaurant and its menu -->
+    <main id="view-restaurant" class="view" hidden>
+      <div class="shop-head">
+        <span class="monogram" id="shop-mono"></span>
+        <div><h1 id="shop-name"></h1><p class="note" id="shop-meta"></p></div>
+      </div>
+      <ul id="menu" class="menu"></ul>
+    </main>
+
+    <!-- Cart -->
+    <main id="view-cart" class="view" hidden>
+      <h1>Your order</h1>
+      <p class="note" id="cart-shop"></p>
+      <ul id="cart-lines" class="cart-lines"></ul>
+      <div class="total"><span>Total</span><strong id="cart-total">€0.00</strong></div>
+      <p class="note">Fictional prices. Nothing is charged: the order is delivered in the Madrid simulation.</p>
+      <button id="checkout" class="primary wide" type="button">Place order</button>
+      <button id="abandon" class="ghost wide" type="button">Empty cart and start again</button>
+    </main>
+
+    <!-- Order tracking -->
+    <main id="view-order" class="view" hidden>
+      <h1 id="order-title">Order confirmed</h1>
+      <p class="note" id="order-meta"></p>
+      <ol class="steps" id="steps">
+        <li data-status="created">Order received</li>
+        <li data-status="preparing">In the kitchen</li>
+        <li data-status="picked_up">Picked up by the courier</li>
+        <li data-status="en_route">On the way</li>
+        <li data-status="delivered">Delivered</li>
+      </ol>
+      <p class="note" id="order-live">Waiting for ClickHouse to publish the order…</p>
+      <a class="ghost wide link" href="/#orders" target="_blank" rel="noopener">See the order on the operations dashboard</a>
+      <button id="again" class="primary wide" type="button">Place another order</button>
+    </main>
+
+    <!-- Product detail -->
+    <dialog id="product" class="sheet" aria-labelledby="product-name">
+      <form method="dialog">
+        <h2 id="product-name"></h2>
+        <p class="note" id="product-origin"></p>
+        <p class="price" id="product-price"></p>
+        <div class="sheet-actions">
+          <button value="cancel" class="ghost" type="submit">Close</button>
+          <button id="add" class="primary" type="button">Add to cart</button>
+        </div>
+      </form>
+    </dialog>
+
+    <button id="cart-bar" class="cart-bar" type="button" hidden>
+      <span id="cart-count">0 items</span><strong>View order</strong><span id="cart-bar-total">€0.00</span>
+    </button>
+  </div>
+
+  <aside class="tape" aria-label="Events sent to the API">
+    <div class="tape-head">
+      <h2>Events in this session</h2>
+      <p>Every action is sent to <code>/api/events</code>. "Queued" is the API's 202; ClickHouse publishes it shortly after.</p>
+      <p class="session">Session <span id="session-id">—</span></p>
+    </div>
+    <ol id="tape" class="tape-list"><li class="empty">You have not done anything yet.</li></ol>
+  </aside>
+</div>
+</body>
+</html>

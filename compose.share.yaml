@@ -1,0 +1,23 @@
+services:
+  share-gateway:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.share
+    env_file: data/sharing/gateway.env
+    environment:
+      ATLAS_SHARE_BACKEND: http://atlas:8001
+    depends_on:
+      atlas:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; from urllib.request import Request,urlopen; urlopen(Request('http://127.0.0.1:8080/api/status',headers={'Authorization':'Bearer '+os.environ['ATLAS_SHARE_TOKEN']}),timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  share-tunnel:
+    image: cloudflare/cloudflared:2026.3.0
+    command: ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", "http://share-gateway:8080"]
+    depends_on:
+      share-gateway:
+        condition: service_healthy

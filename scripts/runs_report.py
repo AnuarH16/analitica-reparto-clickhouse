@@ -74,6 +74,13 @@ def main() -> None:
         "rows, roughly 1.7 million per hour. ClickHouse used about 40 % CPU when checked, and both queues drained to 0 when stopped. "
         "`scripts/simulation_watchdog.sh` was ready to reopen Docker Desktop and restart the runs, but no restart was needed. "
         "`2026-10-31_ce8625ad` is a one-minute run that the watchdog started by mistake after the planned stop.",
+        "- **1 November:** the same two-API setup (`2026-11-01_2d08b7a9` hybrid, `2026-11-01_31fdac6e` traffic) stopped "
+        "after 23 minutes, when Docker Desktop closed and the watchdog closed with the session that ran it. "
+        "The queues still published everything once Docker was back.",
+        "- **3 November (largest run):** the same setup again for about 11 hours, from 02:20 to 13:25 UTC: "
+        "`2026-11-03_70861ccd` (hybrid, seed 1103) and `2026-11-03_592f4a72` (traffic only, seed 1104), together "
+        "about 18.5 million rows. The watchdog ran the whole time without needing to restart anything, and the rows "
+        "exported for each run equal the events its API accepted.",
         "- The second API was a manual `docker run` of the Atlas image on port 18001 with its own queue volume. "
         "From Git Bash, prefix that command with `MSYS_NO_PATHCONV=1`; otherwise Git Bash rewrites "
         "`ATLAS_QUEUE_PATH=/state/outbox.sqlite` to a Windows path and the queue is not kept on the volume.",

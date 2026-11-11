@@ -35,7 +35,11 @@ def rows(run: str, sql: str) -> list[dict]:
     return json.loads(query(run, sql, "JSON"))["data"]
 
 
-def export(run: str, folder: Path) -> dict:
+def export(run: str, target: Path) -> dict:
+    # Write into <target>.partial and rename at the end, so a folder named like a run is always complete.
+    if target.exists():
+        raise SystemExit(f"{target} already exists; not overwriting a saved run")
+    folder = target.with_name(target.name + ".partial")
     folder.mkdir(parents=True, exist_ok=True)
     summary = {"run_id": run, "tables": {}}
     for table in TABLES:
@@ -57,6 +61,7 @@ def export(run: str, folder: Path) -> dict:
                                           "sum(amount_minor) AS amount_minor FROM delivery_atlas.customer_orders FINAL "
                                           f"WHERE {WHERE} GROUP BY decision_mode, source_kind ORDER BY orders DESC")
     (folder / "summary.json").write_bytes((json.dumps(summary, indent=2) + "\n").encode())
+    folder.rename(target)
     return summary
 
 
